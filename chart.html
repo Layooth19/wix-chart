@@ -1,22 +1,85 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Plotly Chart</title>
-  https://cdn.plot.ly/plotly-2.34.0.min.js
+  <meta charset="UTF-8">
+  <title>Interactive Line Graph</title>
+  https://cdn.jsdelivr.net/npm/chart.js
   <style>
-    html, body { margin:0; padding:0; height:100%; }
-    #chart { width:100%; height:100vh; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    #chart-container {
+      width: 80%;
+      margin: auto;
+    }
   </style>
 </head>
 <body>
-  <div id="chart"></div>
+  <h2>Interactive Line Graph with Random Data</h2>
+  <div id="chart-container">
+    <canvas id="lineChart"></canvas>
+  </div>
+
   <script>
-    Plotly.newPlot('chart',
-      [{ x:[0,1,2,3,4,5], y:[0,1,4,9,16,25], type:'scatter', mode:'lines+markers' }],
-      { margin:{l:40,r:20,t:10,b:40}, hovermode:'closest' },
-      { responsive:true }
-    );
+    // Generate random data
+    const labels = Array.from({ length: 10 }, (_, i) => `Point ${i + 1}`);
+    const data = labels.map(() => Math.floor(Math.random() * 100));
+
+    const ctx = document.getElementById('lineChart').getContext('2d');
+    const lineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Random Data',
+          data: data,
+          borderColor: 'blue',
+          backgroundColor: 'rgba(0, 0, 255, 0.1)',
+          pointBackgroundColor: 'blue',
+          pointHoverBackgroundColor: 'red',
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          fill: false,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          tooltip: {
+            enabled: true,
+            callbacks: {
+              label: function(context) {
+                const x = context.label;
+                const y = context.parsed.y;
+                return `x: ${x}, y: ${y}`;
+              }
+            }
+          }
+        },
+        interaction: {
+          mode: 'nearest',
+          axis: 'x',
+          intersect: false
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'X Axis'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Y Axis'
+            },
+            beginAtZero: true
+          }
+        }
+      }
+    });
   </script>
 </body>
 </html>
