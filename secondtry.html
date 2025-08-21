@@ -3,8 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <title>Chart Page</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.jsy>
-  <div id="chart" style="width:800px;height:500px;margin:auto;"></div>
-  <script src="java.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></ <div id="chart" style="width:800px;height:500px;margin:auto;"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const xValues = Array.from({ length: 10 }, (_, i) => i * 5); // x from 0 to 45
+      const yValues = xValues.map(() => Math.floor(Math.random() * 190 + 10)); // y from 10 to 200
+
+      const trace = {
+        x: xValues,
+        y: yValues,
+        mode: 'lines+markers',
+        type: 'scatter',
+        name: 'Random Data',
+        hovertemplate: 'x: %{x}<br>y: %{y}<extra></extra>',
+        marker: { color: 'blue' },
+        line: { color: 'lightblue' }
+      };
+
+      const layout = {
+        title: 'Interactive Line Chart',
+        xaxis: { title: 'X Axis', range: [0, 50] },
+        yaxis: { title: 'Y Axis', range: [10, 200] },
+        hovermode: 'closest'
+      };
+
+      Plotly.newPlot('chart', [trace], layout);
+    });
+  </script>
 </body>
 </html>
