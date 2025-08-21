@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Chart Page</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></ <div id="chart" style="width:800px;height:500px;margin:auto;"></div>
+  <!-- Correct Plotly script tag -->
+  <script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></scriptChart container must be inside the body -->
+  <div id="chart" style="width:800px;height:500px;margin:auto;"></div>
 
+  <!-- Inline script to render the chart -->
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const xValues = Array.from({ length: 10 }, (_, i) => i * 5); // x from 0 to 45
