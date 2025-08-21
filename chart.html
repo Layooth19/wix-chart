@@ -2,84 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Interactive Line Graph</title>
-  https://cdn.jsdelivr.net/npm/chart.js
+  <title>Interactive Line Chart</title>
+  https://cdn.plot.ly/plotly-latest.min.js
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
+      margin: 40px;
     }
-    #chart-container {
-      width: 80%;
+    #chart {
+      width: 100%;
+      max-width: 800px;
+      height: 500px;
       margin: auto;
     }
   </style>
 </head>
 <body>
-  <h2>Interactive Line Graph with Random Data</h2>
-  <div id="chart-container">
-    <canvas id="lineChart"></canvas>
-  </div>
+  <div id="chart"></div>
 
   <script>
     // Generate random data
-    const labels = Array.from({ length: 10 }, (_, i) => `Point ${i + 1}`);
-    const data = labels.map(() => Math.floor(Math.random() * 100));
+    const xValues = Array.from({ length: 10 }, (_, i) => i + 1);
+    const yValues = xValues.map(() => Math.floor(Math.random() * 90 + 10));
 
-    const ctx = document.getElementById('lineChart').getContext('2d');
-    const lineChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Random Data',
-          data: data,
-          borderColor: 'blue',
-          backgroundColor: 'rgba(0, 0, 255, 0.1)',
-          pointBackgroundColor: 'blue',
-          pointHoverBackgroundColor: 'red',
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          fill: false,
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          tooltip: {
-            enabled: true,
-            callbacks: {
-              label: function(context) {
-                const x = context.label;
-                const y = context.parsed.y;
-                return `x: ${x}, y: ${y}`;
-              }
-            }
-          }
-        },
-        interaction: {
-          mode: 'nearest',
-          axis: 'x',
-          intersect: false
-        },
-        scales: {
-          x: {
-            title: {
-              display: true,
-              text: 'X Axis'
-            }
-          },
-          y: {
-            title: {
-              display: true,
-              text: 'Y Axis'
-            },
-            beginAtZero: true
-          }
-        }
-      }
-    });
+    const trace = {
+      x: xValues,
+      y: yValues,
+      mode: 'lines+markers',
+      type: 'scatter',
+      name: 'Random Data',
+      hovertemplate: 'x: %{x}<br>y: %{y}<extra></extra>',
+      marker: { color: 'blue' },
+      line: { color: 'lightblue' }
+    };
+
+    const layout = {
+      title: 'Interactive Line Chart',
+      xaxis: { title: 'X Axis' },
+      yaxis: { title: 'Y Axis' },
+      hovermode: 'closest'
+    };
+
+    Plotly.newPlot('chart', [trace], layout);
   </script>
 </body>
 </html>
