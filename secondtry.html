@@ -26,12 +26,18 @@
     var layout = {
       title: 'Interactive Line Graph',
       hovermode: 'closest', // ensures nearest point highlights
-      xaxis: {title: 'X Axis'},
-      yaxis: {title: 'Y Axis'}
+      xaxis: {title: 'Temperature [celcius]'
+             range: [-50, 100],   // axis goes from -50 to 100
+             dtick: 5,           // gridlines + ticks every 5
+             showgrid: true,     // ensure gridlines are visible
+             zeroline: true      // keep line at x=0
+    },
+      yaxis: {title: 'Kt factor'}
     };
 
     Plotly.newPlot('lineChart', [trace], layout);
   </script>
 </body>
 </html>
+
 
