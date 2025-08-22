@@ -26,12 +26,13 @@
     var layout = {
       title: 'Interactive Line Graph',
       hovermode: 'closest', // ensures nearest point highlights
-      xaxis: {title: 'Temperature [celcius]'
-             range: [-50, 100],   // axis goes from -50 to 100
-             dtick: 5,           // gridlines + ticks every 5
-             showgrid: true,     // ensure gridlines are visible
-             zeroline: true      // keep line at x=0
-    },
+      xaxis: {
+        title: 'X Axis',
+        range: [-50, 100],   // axis goes from -50 to 100
+        dtick: 5,           // gridlines + ticks every 5
+        showgrid: true,     // ensure gridlines are visible
+        zeroline: true      // keep line at x=0
+      },
       yaxis: {title: 'Kt factor'}
     };
 
@@ -39,5 +40,6 @@
   </script>
 </body>
 </html>
+
 
 
