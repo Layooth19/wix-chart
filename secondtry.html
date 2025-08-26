@@ -64,7 +64,7 @@
       const layout = {
         title: `Time-Current Curve: ${fuseName}`,
         hovermode: false,
-        xaxis: { title: "Current (A)", type: "log" },
+        xaxis: { title: "Current (A)", type: "log", tickvals: [1,10,100,1000,10000,100000 },
         yaxis: { 
           title: "Time (s)", 
           type: "log",
@@ -119,5 +119,6 @@
   </script>
 </body>
 </html>
+
 
 
