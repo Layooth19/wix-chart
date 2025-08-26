@@ -19,13 +19,11 @@
 
   <script>
     async function loadData() {
-      // Load the JSON file (must be in same folder or adjust path)
       const response = await fetch("fuses.json");
       const data = await response.json();
 
       const dropdown = document.getElementById("fuseDropdown");
 
-      // Populate dropdown with all fuse part numbers
       for (let fuse in data) {
         let option = document.createElement("option");
         option.value = fuse;
@@ -33,25 +31,33 @@
         dropdown.appendChild(option);
       }
 
-      // Initial plot (first fuse in list)
       let firstFuse = Object.keys(data)[0];
       plotFuse(firstFuse, data);
 
-      // Update plot when dropdown changes
       dropdown.addEventListener("change", function() {
         plotFuse(this.value, data);
       });
     }
 
     function plotFuse(fuseName, data) {
-      const trace = {
+      // Blue line trace
+      const traceLine = {
         x: data[fuseName].x,
         y: data[fuseName].y,
-        mode: "lines+markers",
+        mode: "lines",
         type: "scatter",
-        hovertemplate: "Current: %{x}<br>Time: %{y}<extra></extra>",
         line: {color: "blue"},
-        marker: {size: 8, color: "red"}
+        hoverinfo: "none" // we will control hover manually
+      };
+
+      // Moving marker trace
+      const traceMarker = {
+        x: [null], // initially empty
+        y: [null],
+        mode: "markers",
+        type: "scatter",
+        marker: {size: 10, color: "red"},
+        hovertemplate: "Current: %{x}<br>Time: %{y}<extra></extra>"
       };
 
       const layout = {
@@ -61,7 +67,26 @@
         yaxis: { title: "Time (s)", type: "log" }
       };
 
-      Plotly.newPlot("chart", [trace], layout);
+      Plotly.newPlot("chart", [traceLine, traceMarker], layout);
+
+      // Add hover event listener to update marker position
+      const chart = document.getElementById("chart");
+      chart.on("plotly_hover", function(eventData) {
+        let x = eventData.points[0].x;
+        let y = eventData.points[0].y;
+
+        Plotly.restyle("chart", {
+          x: [[x]],
+          y: [[y]]
+        }, [1]); // Update trace index = 1 (marker trace)
+      });
+
+      chart.on("plotly_unhover", function(eventData) {
+        Plotly.restyle("chart", {
+          x: [[null]],
+          y: [[null]]
+        }, [1]); // Hide marker when not hovering
+      });
     }
 
     loadData();
