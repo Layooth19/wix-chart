@@ -65,9 +65,11 @@
         title: `Time-Current Curve: ${fuseName}`,
         hovermode: false,
         xaxis: { 
-          title: "Current (A)", 
-          type: "log", 
-          tickvals: [1,10,100,1000,10000,100000] 
+          title: "Current (A)",
+          type: "log",
+          tickmode: "array",
+          tickvals: [1, 10, 100, 1000, 10000, 100000],
+          ticktext: ["1", "10", "100", "1k", "10k", "100k"] 
         },
         yaxis: { 
           title: "Time (s)", 
@@ -123,3 +125,4 @@
   </script>
 </body>
 </html>
+
