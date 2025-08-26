@@ -64,7 +64,11 @@
       const layout = {
         title: `Time-Current Curve: ${fuseName}`,
         hovermode: false,
-        xaxis: { title: "Current (A)", type: "log", tickvals: [1,10,100,1000,10000,100000 },
+        xaxis: { 
+          title: "Current (A)", 
+          type: "log", 
+          tickvals: [1,10,100,1000,10000,100000] 
+        },
         yaxis: { 
           title: "Time (s)", 
           type: "log",
@@ -82,7 +86,7 @@
         const xPixel = evt.clientX - bbox.left;
 
         const xaxis = chart._fullLayout.xaxis;
-        const xVal = xaxis.p2l(xPixel); // pixel→data (accounts for log)
+        const xVal = xaxis.p2l(xPixel); // pixel→data (log included)
 
         if (isNaN(xVal) || xVal <= 0) return;
 
@@ -119,6 +123,3 @@
   </script>
 </body>
 </html>
-
-
-
