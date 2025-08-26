@@ -40,38 +40,35 @@
     }
 
     function plotFuse(fuseName, data) {
-      // Extract arrays
       const xs = data[fuseName].x.map(Number);
       const ys = data[fuseName].y.map(Number);
 
-      // Line trace only
       const traceLine = {
         x: xs,
         y: ys,
         mode: "lines",
         type: "scatter",
         line: {color: "blue"},
-        hoverinfo: "skip" // improve performance
+        hoverinfo: "skip"
       };
 
-      // Moving marker trace
       const traceMarker = {
-        x: [null],
-        y: [null],
+        x: [xs[0]],
+        y: [ys[0]],
         mode: "markers",
         type: "scatter",
         marker: {size: 10, color: "red"},
-        hoverinfo: "skip" // we'll show hover info ourselves
+        name: "Marker"
       };
 
       const layout = {
         title: `Time-Current Curve: ${fuseName}`,
-        hovermode: false, // disable default hover
+        hovermode: false,
         xaxis: { title: "Current (A)", type: "log" },
         yaxis: { 
           title: "Time (s)", 
           type: "log",
-          autorange: "reversed",  // flip Y axis
+          autorange: "reversed",   // 👈 this actually reverses the axis
           tickvals: [10000,1000,100,10,1,0.1,0.01],
           ticktext: ["10k","1k","100","10","1","0.1","0.01"]
         }
@@ -81,39 +78,40 @@
 
       const chart = document.getElementById("chart");
 
-      // Add mouse move listener for interpolation
-      chart.on("mousemove", function(evt){
+      chart.on("mousemove", function(evt) {
         const bbox = chart.getBoundingClientRect();
         const xPixel = evt.clientX - bbox.left;
 
-        // Convert pixel -> data coordinates
         const xaxis = chart._fullLayout.xaxis;
-        const xVal = xaxis.p2l(xPixel); // pixel to linear (log included by Plotly)
+        const xVal = xaxis.p2l(xPixel); // pixel→data (accounts for log)
 
-        // Find closest segment in xs for interpolation
+        if (isNaN(xVal) || xVal <= 0) return;
+
+        // Find bracketing segment
         let i = 0;
-        while (i < xs.length-1 && xs[i+1] < xVal) {
+        while (i < xs.length - 1 && xs[i+1] < xVal) {
           i++;
         }
 
-        if (i < xs.length-1) {
-          // Linear interpolate in log-log space
+        if (i < xs.length - 1) {
+          // Interpolate in log-log space
           const x0 = Math.log10(xs[i]);
           const x1 = Math.log10(xs[i+1]);
           const y0 = Math.log10(ys[i]);
           const y1 = Math.log10(ys[i+1]);
+
           const t = (Math.log10(xVal) - x0) / (x1 - x0);
           const yVal = Math.pow(10, y0 + t * (y1 - y0));
 
+          // Update marker position
           Plotly.restyle("chart", {
             x: [[xVal]],
             y: [[yVal]]
-          }, [1]); // update marker
+          }, [1]);
         }
       });
 
-      // Remove marker if mouse leaves graph
-      chart.on("mouseleave", function(){
+      chart.on("mouseleave", function() {
         Plotly.restyle("chart", {x: [[null]], y: [[null]]}, [1]);
       });
     }
