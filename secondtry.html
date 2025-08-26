@@ -2,44 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Interactive Line Graph</title>
+  <title>Fuse Time-Current Curves</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
-  <div id="lineChart" style="width:80%;height:80%;margin:auto;"></div>
+  <h2 style="text-align:center;">Fuse Time-Current Curves</h2>
+
+  <!-- Dropdown -->
+  <div style="text-align:center; margin:20px;">
+    <label for="fuseDropdown">Select a Fuse:</label>
+    <select id="fuseDropdown"></select>
+  </div>
+
+  <!-- Plotly chart -->
+  <div id="chart" style="width:90%;height:80%;margin:auto;"></div>
 
   <script>
-    // Example dataset
-    var xValues = [-50, -45, -40,	-35,	-30,	-25,	-20,	-15,	-10,	-5,	0,	5,	10,	15,	20,	25,	30,	35,	40,	45,	50,	55,	60,	65,	70,	75,	80,	85,	90,	95,	100];
-    var yValues = [1.27,	1.26,	1.24,	1.22,	1.20,	1.18,	1.16,	1.14,	1.12,	1.10,	1.08,	1.06,	1.04,	1.02,	1.00,	0.98,	0.96,	0.93,	0.91,	0.88,	0.86,	0.83,	0.81,	0.78,	0.75,	0.72,	0.69,	0.66,	0.63,	0.60,	0.56];
+    async function loadData() {
+      // Load the JSON file (must be in same folder or adjust path)
+      const response = await fetch("fuses.json");
+      const data = await response.json();
 
-    var trace = {
-      x: xValues,
-      y: yValues,
-      mode: 'lines+markers',   // lines + markers for hover points
-      type: 'scatter',
-      hovertemplate: 'X: %{x}<br>Y: %{y}<extra></extra>', // Custom hover label
-      line: {color: 'blue'},
-      marker: {size: 8, color: 'red'}
-    };
+      const dropdown = document.getElementById("fuseDropdown");
 
-    var layout = {
-      title: 'Interactive Line Graph',
-      hovermode: 'closest', // ensures nearest point highlights
-      xaxis: {
-        title: 'X Axis',
-        range: [-50, 100],   // axis goes from -50 to 100
-        dtick: 5,           // gridlines + ticks every 5
-        showgrid: true,     // ensure gridlines are visible
-        zeroline: true      // keep line at x=0
-      },
-      yaxis: {title: 'Kt factor'}
-    };
+      // Populate dropdown with all fuse part numbers
+      for (let fuse in data) {
+        let option = document.createElement("option");
+        option.value = fuse;
+        option.text = fuse;
+        dropdown.appendChild(option);
+      }
 
-    Plotly.newPlot('lineChart', [trace], layout);
+      // Initial plot (first fuse in list)
+      let firstFuse = Object.keys(data)[0];
+      plotFuse(firstFuse, data);
+
+      // Update plot when dropdown changes
+      dropdown.addEventListener("change", function() {
+        plotFuse(this.value, data);
+      });
+    }
+
+    function plotFuse(fuseName, data) {
+      const trace = {
+        x: data[fuseName].x,
+        y: data[fuseName].y,
+        mode: "lines+markers",
+        type: "scatter",
+        hovertemplate: "Current: %{x}<br>Time: %{y}<extra></extra>",
+        line: {color: "blue"},
+        marker: {size: 8, color: "red"}
+      };
+
+      const layout = {
+        title: `Time-Current Curve: ${fuseName}`,
+        hovermode: "closest",
+        xaxis: { title: "Current (A)", type: "log" },
+        yaxis: { title: "Time (s)", type: "log" }
+      };
+
+      Plotly.newPlot("chart", [trace], layout);
+    }
+
+    loadData();
   </script>
 </body>
 </html>
-
-
-
