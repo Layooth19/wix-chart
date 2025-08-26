@@ -40,52 +40,81 @@
     }
 
     function plotFuse(fuseName, data) {
-      // Blue line trace
+      // Extract arrays
+      const xs = data[fuseName].x.map(Number);
+      const ys = data[fuseName].y.map(Number);
+
+      // Line trace only
       const traceLine = {
-        x: data[fuseName].x,
-        y: data[fuseName].y,
+        x: xs,
+        y: ys,
         mode: "lines",
         type: "scatter",
         line: {color: "blue"},
-        hoverinfo: "none" // we will control hover manually
+        hoverinfo: "skip" // improve performance
       };
 
       // Moving marker trace
       const traceMarker = {
-        x: [null], // initially empty
+        x: [null],
         y: [null],
         mode: "markers",
         type: "scatter",
         marker: {size: 10, color: "red"},
-        hovertemplate: "Current: %{x}<br>Time: %{y}<extra></extra>"
+        hoverinfo: "skip" // we'll show hover info ourselves
       };
 
       const layout = {
         title: `Time-Current Curve: ${fuseName}`,
-        hovermode: "closest",
+        hovermode: false, // disable default hover
         xaxis: { title: "Current (A)", type: "log" },
-        yaxis: { title: "Time (s)", type: "log" }
+        yaxis: { 
+          title: "Time (s)", 
+          type: "log",
+          autorange: "reversed",  // flip Y axis
+          tickvals: [10000,1000,100,10,1,0.1,0.01],
+          ticktext: ["10k","1k","100","10","1","0.1","0.01"]
+        }
       };
 
       Plotly.newPlot("chart", [traceLine, traceMarker], layout);
 
-      // Add hover event listener to update marker position
       const chart = document.getElementById("chart");
-      chart.on("plotly_hover", function(eventData) {
-        let x = eventData.points[0].x;
-        let y = eventData.points[0].y;
 
-        Plotly.restyle("chart", {
-          x: [[x]],
-          y: [[y]]
-        }, [1]); // Update trace index = 1 (marker trace)
+      // Add mouse move listener for interpolation
+      chart.on("mousemove", function(evt){
+        const bbox = chart.getBoundingClientRect();
+        const xPixel = evt.clientX - bbox.left;
+
+        // Convert pixel -> data coordinates
+        const xaxis = chart._fullLayout.xaxis;
+        const xVal = xaxis.p2l(xPixel); // pixel to linear (log included by Plotly)
+
+        // Find closest segment in xs for interpolation
+        let i = 0;
+        while (i < xs.length-1 && xs[i+1] < xVal) {
+          i++;
+        }
+
+        if (i < xs.length-1) {
+          // Linear interpolate in log-log space
+          const x0 = Math.log10(xs[i]);
+          const x1 = Math.log10(xs[i+1]);
+          const y0 = Math.log10(ys[i]);
+          const y1 = Math.log10(ys[i+1]);
+          const t = (Math.log10(xVal) - x0) / (x1 - x0);
+          const yVal = Math.pow(10, y0 + t * (y1 - y0));
+
+          Plotly.restyle("chart", {
+            x: [[xVal]],
+            y: [[yVal]]
+          }, [1]); // update marker
+        }
       });
 
-      chart.on("plotly_unhover", function(eventData) {
-        Plotly.restyle("chart", {
-          x: [[null]],
-          y: [[null]]
-        }, [1]); // Hide marker when not hovering
+      // Remove marker if mouse leaves graph
+      chart.on("mouseleave", function(){
+        Plotly.restyle("chart", {x: [[null]], y: [[null]]}, [1]);
       });
     }
 
