@@ -108,7 +108,7 @@
       const traceDense = {
         x: denseX, y: denseY, mode: "lines", type: "scatter",
         line: { width: 1, color: 'rgba(0,0,0,0)' }, // invisible but hoverable
-        hoverinfo: "x+y",
+        hoverinfo: "skip",
         name: "dense"
       };
 
@@ -117,7 +117,7 @@
         x: [denseX[0]], y: [denseY[0]],
         mode: "markers", type: "scatter",
         marker: { size: 10 },
-        hovertemplate: "Current: %{x}<br>Time: %{y}<extra></extra>",
+        hovertemplate: "<b>Current:</b> %{x}<br><b>Time:</b> %{y}<extra></extra>",
         name: "cursor"
       };
 
@@ -201,5 +201,6 @@
   </script>
 </body>
 </html>
+
 
 
