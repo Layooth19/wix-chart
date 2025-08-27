@@ -104,10 +104,11 @@
       };
 
       // Dense line: used for smooth hover snapping
+      
       const traceDense = {
         x: denseX, y: denseY, mode: "lines", type: "scatter",
-        line: { width: 0 },   // invisible line; just used for hover
-        hoverinfo: "skip",
+        line: { width: 1, color: 'rgba(0,0,0,0)' }, // invisible but hoverable
+        hoverinfo: "x+y",
         name: "dense"
       };
 
@@ -123,15 +124,16 @@
       // Compute reasonable axis ranges (pad a bit)
       const xMin = Math.min(...X), xMax = Math.max(...X);
       const yMin = Math.min(...Y), yMax = Math.max(...Y);
+      
       const layout = {
         title: `Time-Current Curve: ${name}`,
-        hovermode: "closest",
+        hovermode: "x unified", // better hover experience
         dragmode: "pan",
-        uirevision: name, // keep current view on marker updates
+        uirevision: name,
         xaxis: {
           title: "Current (A)",
           type: "log",
-          range: [Math.log10(xMin) - 0.05, Math.log10(xMax) + 0.05], // stable range
+          range: [Math.log10(xMin) - 0.05, Math.log10(xMax) + 0.05],
           showspikes: true, spikemode: "across", spikesnap: "cursor"
         },
         yaxis: {
@@ -142,6 +144,7 @@
         },
         margin: { l: 70, r: 20, t: 60, b: 60 }
       };
+
 
       Plotly.newPlot("chart", [traceOriginal, traceDense, traceCursor], layout, PLOT_CONFIG).then(gd => {
         // Use Plotly's hover events on the dense trace
@@ -161,3 +164,4 @@
   </script>
 </body>
 </html>
+
