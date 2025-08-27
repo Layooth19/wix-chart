@@ -5,40 +5,34 @@
   <title>Fuse Time-Current Curves</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    #readout {
-      position: absolute;
-      pointer-events: none;
-      background: rgba(0,0,0,0.7);
-      color: #fff;
-      padding: 6px 8px;
-      border-radius: 6px;
-      font: 12px/1.2 system-ui, sans-serif;
-      transform: translate(8px, -8px);
-      display: none;
-      white-space: nowrap;
-    }
     .wrap { position: relative; width: 90%; height: 80vh; margin: 0 auto; }
   </style>
 </head>
 <body>
   <h2 style="text-align:center;">Fuse Time-Current Curves</h2>
 
-  <div style="text-align:center;margin:20px;">
+  <div style="text-align:center; margin:20px;">
     <label for="fuseDropdown">Select a Fuse:</label>
     <select id="fuseDropdown"></select>
   </div>
 
   <div class="wrap">
     <div id="chart" style="width:100%;height:100%;"></div>
-    <div id="readout"></div>
   </div>
 
   <script>
-    let cache = {};         // hold active xs/ys/logs for current fuse
-    let rafPending = false; // throttle mousemove
+    const PLOT_CONFIG = {
+      responsive: true,
+      displayModeBar: true,
+      scrollZoom: false,     // stop wheel-zoom
+      doubleClick: false,    // stop double-click autorange zoom
+    };
+
+    let denseTraceIndex = 1; // index of the dense line trace
+    let cursorTraceIndex = 2; // index of the moving marker
 
     async function loadData() {
-      const response = await fetch("fuses.json"); // keep next to this HTML
+      const response = await fetch("fuses.json");
       const data = await response.json();
 
       const dropdown = document.getElementById("fuseDropdown");
@@ -54,157 +48,112 @@
     }
 
     function prepSeries(xs, ys) {
-      // Ensure numeric & monotonic increasing in x (sort pairs if needed)
+      // numeric, positive, sort by x ascending
       const pairs = xs.map((x, i) => [Number(x), Number(ys[i])])
                       .filter(p => isFinite(p[0]) && p[0] > 0 && isFinite(p[1]) && p[1] > 0)
                       .sort((a,b) => a[0]-b[0]);
-
       const X = pairs.map(p => p[0]);
       const Y = pairs.map(p => p[1]);
-      const logX = X.map(v => Math.log10(v));
-      const logY = Y.map(v => Math.log10(v));
-      return { X, Y, logX, logY };
+      return { X, Y };
+    }
+
+    function interpolateLogLog(X, Y, samples = 400) {
+      // Build a dense set along log–log space using linear interpolation
+      const lx = X.map(v => Math.log10(v));
+      const ly = Y.map(v => Math.log10(v));
+      const lxMin = lx[0], lxMax = lx[lx.length - 1];
+      const denseX = [], denseY = [];
+
+      for (let k = 0; k < samples; k++) {
+        const lxq = lxMin + (lxMax - lxMin) * (k / (samples - 1));
+        // binary search for segment
+        let lo = 0, hi = lx.length - 1, j = lx.length - 1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (lx[mid] >= lxq) { j = mid; hi = mid - 1; }
+          else { lo = mid + 1; }
+        }
+        if (j === 0) {
+          denseX.push(Math.pow(10, lx[0]));
+          denseY.push(Math.pow(10, ly[0]));
+        } else if (j >= lx.length) {
+          denseX.push(Math.pow(10, lx[lx.length-1]));
+          denseY.push(Math.pow(10, ly[ly.length-1]));
+        } else {
+          const t = (lxq - lx[j-1]) / (lx[j] - lx[j-1]);
+          const lyq = ly[j-1] + t * (ly[j] - ly[j-1]);
+          denseX.push(Math.pow(10, lxq));
+          denseY.push(Math.pow(10, lyq));
+        }
+      }
+      return { denseX, denseY };
     }
 
     function plotFuse(name, data) {
-      const xs = (data[name].x || []).map(Number);
-      const ys = (data[name].y || []).map(Number);
+      const rawX = (data[name].x || []);
+      const rawY = (data[name].y || []);
+      const { X, Y } = prepSeries(rawX, rawY);
+      const { denseX, denseY } = interpolateLogLog(X, Y, 500);
 
-      cache = prepSeries(xs, ys);
-      const { X, Y } = cache;
-
-      const traceLine = {
+      // Base (original) line for reference
+      const traceOriginal = {
         x: X, y: Y, mode: "lines", type: "scatter",
         line: { width: 2 },
         hoverinfo: "skip",
-        name: name
+        name: `${name} (raw)`
       };
 
-      const traceMarker = {
-        x: [X[0]], y: [Y[0]],
+      // Dense line: used for smooth hover snapping
+      const traceDense = {
+        x: denseX, y: denseY, mode: "lines", type: "scatter",
+        line: { width: 0 },   // invisible line; just used for hover
+        hoverinfo: "skip",
+        name: "dense"
+      };
+
+      // Cursor marker that we’ll move on hover
+      const traceCursor = {
+        x: [denseX[0]], y: [denseY[0]],
         mode: "markers", type: "scatter",
         marker: { size: 10 },
-        hoverinfo: "skip",
-        name: "Cursor"
+        hovertemplate: "Current: %{x}<br>Time: %{y}<extra></extra>",
+        name: "cursor"
       };
 
+      // Compute reasonable axis ranges (pad a bit)
+      const xMin = Math.min(...X), xMax = Math.max(...X);
+      const yMin = Math.min(...Y), yMax = Math.max(...Y);
       const layout = {
         title: `Time-Current Curve: ${name}`,
-        hovermode: false,
+        hovermode: "closest",
+        dragmode: "pan",
+        uirevision: name, // keep current view on marker updates
         xaxis: {
           title: "Current (A)",
           type: "log",
-          tickmode: "array",
-          tickvals: [1,10,100,1000,10000,100000],
-          ticktext: ["1","10","100","1k","10k","100k"]
+          range: [Math.log10(xMin) - 0.05, Math.log10(xMax) + 0.05], // stable range
+          showspikes: true, spikemode: "across", spikesnap: "cursor"
         },
         yaxis: {
           title: "Time (s)",
           type: "log",
-          tickvals: [0.0001,0.001,0.01,0.1,1,10,100,1000,10000],
-          ticktext: ["0.0001","0.001","0.01","0.1","1","10","100","1k","10k"]
+          range: [Math.log10(yMin) - 0.05, Math.log10(yMax) + 0.05],
+          showspikes: true, spikemode: "across", spikesnap: "cursor"
         },
         margin: { l: 70, r: 20, t: 60, b: 60 }
       };
 
-      Plotly.newPlot("chart", [traceLine, traceMarker], layout).then(hookCursor);
-    }
-
-    function hookCursor() {
-      const gd = document.getElementById("chart");
-      const readout = document.getElementById("readout");
-
-      // The inner plot area (SVG) – mouse math should use this bbox
-      const plot = gd._fullLayout._plots.xy.plot; // SVG <g> for XY subplot
-
-      function onMove(evt) {
-        if (rafPending) return;
-        rafPending = true;
-        requestAnimationFrame(() => {
-          rafPending = false;
-
-          const rect = plot.getBoundingClientRect();
-          const xpx = evt.clientX - rect.left;     // pixel X within plot area
-          const ypx = evt.clientY - rect.top;      // pixel Y within plot area
-          if (xpx < 0 || ypx < 0 || xpx > rect.width || ypx > rect.height) {
-            // outside plot area
-            Plotly.restyle(gd, { x: [[null]], y: [[null]] }, [1]);
-            readout.style.display = "none";
-            return;
-          }
-
-          const xa = gd._fullLayout.xaxis;
-          const ya = gd._fullLayout.yaxis;
-
-          // pixel -> linearized -> data (handles log axes correctly)
-          const xlin = xa.p2l(xpx);
-          const ylin = ya.p2l(ypx); // not used, but here if you ever want vertical snap
-          const xVal = xa.l2d(xlin);
-
-          if (!isFinite(xVal) || xVal <= 0) {
-            Plotly.restyle(gd, { x: [[null]], y: [[null]] }, [1]);
-            readout.style.display = "none";
-            return;
-          }
-
-          const { X, Y, logX, logY } = cache;
-          if (X.length < 2) return;
-
-          // Find right bracket: first index j where X[j] >= xVal
-          let lo = 0, hi = X.length - 1, j = X.length - 1;
-          while (lo <= hi) {
-            const mid = (lo + hi) >> 1;
-            if (X[mid] >= xVal) { j = mid; hi = mid - 1; }
-            else { lo = mid + 1; }
-          }
-
-          if (j === 0) {
-            // left of first point — clamp
-            Plotly.restyle(gd, { x: [[X[0]]], y: [[Y[0]]] }, [1]);
-            placeReadout(readout, evt, X[0], Y[0]);
-            return;
-          }
-          if (j >= X.length) {
-            // right of last point — clamp
-            const k = X.length - 1;
-            Plotly.restyle(gd, { x: [[X[k]]], y: [[Y[k]]] }, [1]);
-            placeReadout(readout, evt, X[k], Y[k]);
-            return;
-          }
-
-          // Interpolate in log–log space along the segment [j-1, j]
-          const lx = Math.log10(xVal);
-          const t = (lx - logX[j-1]) / (logX[j] - logX[j-1]);
-          const ly = logY[j-1] + t * (logY[j] - logY[j-1]);
-          const yVal = Math.pow(10, ly);
-
-          // Update marker
-          Plotly.restyle(gd, { x: [[xVal]], y: [[yVal]] }, [1]);
-
-          // Show readout
-          placeReadout(readout, evt, xVal, yVal);
+      Plotly.newPlot("chart", [traceOriginal, traceDense, traceCursor], layout, PLOT_CONFIG).then(gd => {
+        // Use Plotly's hover events on the dense trace
+        gd.on("plotly_hover", ev => {
+          const pt = ev.points && ev.points[0];
+          if (!pt || pt.curveNumber !== denseTraceIndex) return;
+          Plotly.restyle(gd, { x: [[pt.x]], y: [[pt.y]] }, [cursorTraceIndex]);
         });
-      }
-
-      function placeReadout(el, evt, x, y) {
-        el.style.display = "block";
-        el.style.left = `${evt.clientX}px`;
-        el.style.top  = `${evt.clientY}px`;
-        el.textContent = `Current: ${fmt(x)} A   •   Time: ${fmt(y)} s`;
-      }
-
-      function fmt(v) {
-        // pretty: show 3 sig figs, switch to exponential for very small/large
-        const a = Math.abs(v);
-        if (a >= 1e4 || a < 1e-3) return v.toExponential(2);
-        return Number(v).toPrecision(3);
-      }
-
-      // attach listeners once
-      gd.addEventListener("mousemove", onMove);
-      gd.addEventListener("mouseleave", () => {
-        Plotly.restyle(gd, { x: [[null]], y: [[null]] }, [1]);
-        document.getElementById("readout").style.display = "none";
+        gd.on("plotly_unhover", () => {
+          // hide cursor when leaving the dense line
+          Plotly.restyle(gd, { x: [[null]], y: [[null]] }, [cursorTraceIndex]);
+        });
       });
     }
 
