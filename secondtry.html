@@ -134,13 +134,13 @@
           title: "Current (A)",
           type: "log",
           range: [Math.log10(xMin) - 0.05, Math.log10(xMax) + 0.05],
-          showspikes: true, spikemode: "across", spikesnap: "cursor"
+          showspikes: false
         },
         yaxis: {
           title: "Time (s)",
           type: "log",
           range: [Math.log10(yMin) - 0.05, Math.log10(yMax) + 0.05],
-          showspikes: true, spikemode: "across", spikesnap: "cursor"
+          showspikes: false
         },
         margin: { l: 70, r: 20, t: 60, b: 60 }
       };
@@ -155,7 +155,7 @@
           // Update marker position
           Plotly.restyle(gd, { x: [[pt.x]], y: [[pt.y]] }, [cursorTraceIndex]);
         
-          // Draw horizontal and vertical dotted lines at marker position
+          // Draw vertical and horizontal lines at marker position
           const shapes = [
             {
               type: 'line',
@@ -191,7 +191,7 @@
         });
         
         gd.on("plotly_unhover", () => {
-          // Keep marker and spike lines visible — do not clear them
+          // Do nothing — keep marker and lines visible
         });
 
       });
@@ -201,4 +201,5 @@
   </script>
 </body>
 </html>
+
 
