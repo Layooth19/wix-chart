@@ -151,12 +151,49 @@
         gd.on("plotly_hover", ev => {
           const pt = ev.points && ev.points[0];
           if (!pt || pt.curveNumber !== denseTraceIndex) return;
+        
+          // Update marker position
           Plotly.restyle(gd, { x: [[pt.x]], y: [[pt.y]] }, [cursorTraceIndex]);
+        
+          // Draw horizontal and vertical dotted lines at marker position
+          const shapes = [
+            {
+              type: 'line',
+              xref: 'x',
+              x0: pt.x,
+              x1: pt.x,
+              yref: 'paper',
+              y0: 0,
+              y1: 1,
+              line: {
+                color: 'gray',
+                width: 1,
+                dash: 'dot'
+              }
+            },
+            {
+              type: 'line',
+              xref: 'paper',
+              x0: 0,
+              x1: 1,
+              yref: 'y',
+              y0: pt.y,
+              y1: pt.y,
+              line: {
+                color: 'gray',
+                width: 1,
+                dash: 'dot'
+              }
+            }
+          ];
+        
+          Plotly.relayout(gd, { shapes });
         });
+        
         gd.on("plotly_unhover", () => {
-          // hide cursor when leaving the dense line
-          Plotly.restyle(gd, { x: [[null]], y: [[null]] }, [cursorTraceIndex]);
+          // Keep marker and spike lines visible — do not clear them
         });
+
       });
     }
 
@@ -164,3 +201,4 @@
   </script>
 </body>
 </html>
+
