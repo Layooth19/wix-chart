@@ -127,36 +127,56 @@
       
       const layout = {
         title: `Time-Current Curve: ${name}`,
-        hovermode: "x unified", // better hover experience
+        hovermode: "closest",
         dragmode: "pan",
         uirevision: name,
         xaxis: {
           title: "Current (A)",
           type: "log",
           range: [Math.log10(xMin) - 0.05, Math.log10(xMax) + 0.05],
-          showspikes: true, spikemode: "across", spikesnap: "cursor"
+          showspikes: false
         },
         yaxis: {
           title: "Time (s)",
           type: "log",
           range: [Math.log10(yMin) - 0.05, Math.log10(yMax) + 0.05],
-          showspikes: true, spikemode: "across", spikesnap: "cursor"
+          showspikes: false
         },
-        margin: { l: 70, r: 20, t: 60, b: 60 }
+        margin: { l: 70, r: 20, t: 60, b: 60 },
+        shapes: [] // we'll update this dynamically
       };
-
 
       Plotly.newPlot("chart", [traceOriginal, traceDense, traceCursor], layout, PLOT_CONFIG).then(gd => {
         // Use Plotly's hover events on the dense trace
         gd.on("plotly_hover", ev => {
           const pt = ev.points && ev.points[0];
           if (!pt || pt.curveNumber !== denseTraceIndex) return;
+        
+          // Update marker
           Plotly.restyle(gd, { x: [[pt.x]], y: [[pt.y]] }, [cursorTraceIndex]);
+        
+          // Add horizontal line at marker's y
+          const shape = {
+            type: 'line',
+            xref: 'paper',
+            x0: 0, x1: 1,
+            yref: 'y',
+            y0: pt.y, y1: pt.y,
+            line: {
+              color: 'gray',
+              width: 1,
+              dash: 'dot'
+            }
+          };
+          Plotly.relayout(gd, { shapes: [shape] });
         });
+
+        
         gd.on("plotly_unhover", () => {
-          // hide cursor when leaving the dense line
-          Plotly.restyle(gd, { x: [[null]], y: [[null]] }, [cursorTraceIndex]);
+          // Keep marker visible, but remove spike line
+          Plotly.relayout(gd, { shapes: [] });
         });
+
       });
     }
 
@@ -164,4 +184,5 @@
   </script>
 </body>
 </html>
+
 
