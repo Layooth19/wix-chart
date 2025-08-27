@@ -148,33 +148,28 @@
 
       Plotly.newPlot("chart", [traceOriginal, traceDense, traceCursor], layout, PLOT_CONFIG).then(gd => {
         // Use Plotly's hover events on the dense trace
+        
         gd.on("plotly_hover", ev => {
           const pt = ev.points && ev.points[0];
           if (!pt || pt.curveNumber !== denseTraceIndex) return;
         
-          // Update marker
+          // Update marker position
           Plotly.restyle(gd, { x: [[pt.x]], y: [[pt.y]] }, [cursorTraceIndex]);
         
-          // Add horizontal line at marker's y
-          const shape = {
-            type: 'line',
-            xref: 'paper',
-            x0: 0, x1: 1,
-            yref: 'y',
-            y0: pt.y, y1: pt.y,
-            line: {
-              color: 'gray',
-              width: 1,
-              dash: 'dot'
-            }
-          };
-          Plotly.relayout(gd, { shapes: [shape] });
+          // Update spike line to follow marker
+          Plotly.relayout(gd, {
+            'xaxis.showspikes': true,
+            'xaxis.spikesnap': 'data',
+            'xaxis.spikecolor': 'gray',
+            'xaxis.spikevalue': pt.x
+          });
         });
 
+          Plotly.relayout(gd, { shapes: [shape] });
+        });
         
         gd.on("plotly_unhover", () => {
-          // Keep marker visible, but remove spike line
-          Plotly.relayout(gd, { shapes: [] });
+          // Keep marker and spike visible
         });
 
       });
@@ -184,5 +179,3 @@
   </script>
 </body>
 </html>
-
-
