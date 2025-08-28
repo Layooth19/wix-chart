@@ -20,6 +20,12 @@
     <div id="chart" style="width:100%;height:100%;"></div>
   </div>
 
+  <div style="text-align:center; margin:20px;">
+    <label for="currentInput">Enter Current Rating (A):</label>
+    <input type="number" id="currentInput" placeholder="e.g. 10" />
+  </div>
+
+
   <script>
     const PLOT_CONFIG = {
       responsive: true,
@@ -34,18 +40,43 @@
     async function loadData() {
       const response = await fetch("fuses.json");
       const data = await response.json();
-
+      window.fuseData = data; // store globally
+    
       const dropdown = document.getElementById("fuseDropdown");
-      Object.keys(data).forEach(fuse => {
-        const opt = document.createElement("option");
-        opt.value = fuse; opt.text = fuse;
-        dropdown.appendChild(opt);
+      const inputBox = document.getElementById("currentInput");
+    
+      function populateDropdown(filteredFuses = Object.keys(data)) {
+        dropdown.innerHTML = ""; // clear existing options
+        filteredFuses.forEach(fuse => {
+          const opt = document.createElement("option");
+          opt.value = fuse;
+          opt.text = fuse;
+          dropdown.appendChild(opt);
+        });
+        if (filteredFuses.length > 0) {
+          plotFuse(filteredFuses[0], data);
+        }
+      }
+    
+      // Initial population
+      populateDropdown();
+    
+      // Filter dropdown when user inputs a current value
+      inputBox.addEventListener("input", () => {
+        const targetCurrent = Number(inputBox.value);
+        if (!isFinite(targetCurrent)) return;
+    
+        const filtered = Object.keys(data).filter(fuse => {
+          const currents = data[fuse].x.map(Number).filter(v => isFinite(v));
+          return currents.includes(targetCurrent);
+        });
+    
+        populateDropdown(filtered);
       });
-
-      const first = Object.keys(data)[0];
-      plotFuse(first, data);
+    
       dropdown.addEventListener("change", () => plotFuse(dropdown.value, data));
     }
+
 
     function prepSeries(xs, ys) {
       // numeric, positive, sort by x ascending
@@ -201,5 +232,6 @@
   </script>
 </body>
 </html>
+
 
 
