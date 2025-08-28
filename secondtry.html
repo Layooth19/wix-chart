@@ -63,22 +63,19 @@
     
       // Filter dropdown when user inputs a current value
       inputBox.addEventListener("input", () => {
-        if (inputBox.value.trim() === "") {
-          populateDropdown();
+        const inputValue = inputBox.value.trim();
+      
+        if (inputValue === "") {
+          populateDropdown(); // show all fuses
           return;
         }
       
-        const targetCurrent = Number(inputBox.value);
-        if (!isFinite(targetCurrent)) return;
+        const targetCurrent = inputValue + "A"; // match fuse name like "10A", "16A", etc.
       
-        const filtered = Object.keys(data).filter(fuse => {
-          const currents = data[fuse].x.map(Number).filter(v => isFinite(v));
-          return currents.some(v => Math.abs(v - targetCurrent) < 0.1);
-        });
+        const filtered = Object.keys(data).filter(fuse => fuse === targetCurrent);
       
         populateDropdown(filtered);
       });
-
     
       dropdown.addEventListener("change", () => plotFuse(dropdown.value, data));
     }
@@ -238,6 +235,7 @@
   </script>
 </body>
 </html>
+
 
 
 
