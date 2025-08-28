@@ -63,16 +63,22 @@
     
       // Filter dropdown when user inputs a current value
       inputBox.addEventListener("input", () => {
+        if (inputBox.value.trim() === "") {
+          populateDropdown();
+          return;
+        }
+      
         const targetCurrent = Number(inputBox.value);
         if (!isFinite(targetCurrent)) return;
-    
+      
         const filtered = Object.keys(data).filter(fuse => {
           const currents = data[fuse].x.map(Number).filter(v => isFinite(v));
-          return currents.includes(targetCurrent);
+          return currents.some(v => Math.abs(v - targetCurrent) < 0.1);
         });
-    
+      
         populateDropdown(filtered);
       });
+
     
       dropdown.addEventListener("change", () => plotFuse(dropdown.value, data));
     }
@@ -232,6 +238,7 @@
   </script>
 </body>
 </html>
+
 
 
 
