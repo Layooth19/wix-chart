@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Fuse Time-Current Curves</title>
-  https://cdn.plot.ly/plotly-latest.min.js</script>
+  https://cdn.plot.ly/plotly-latest.min.js
   <style>
     .wrap { position: relative; width: 90%; height: 80vh; margin: 0 auto; }
   </style>
@@ -76,7 +76,7 @@
     }
 
     function prepSeries(xs, ys) {
-      const pairs = xs.map((x, i) => [Number(x), Number(ys[i])])
+      const pairs = xs.map((x, i) => [parseFloat(x), parseFloat(ys[i])])
                       .filter(p => isFinite(p[0]) && p[0] > 0 && isFinite(p[1]) && p[1] > 0)
                       .sort((a,b) => a[0]-b[0]);
       const X = pairs.map(p => p[0]);
@@ -90,6 +90,11 @@
       const rawX = Object.values(timeCurrentMap); // current values
 
       const { X, Y } = prepSeries(rawX, rawY);
+
+      if (X.length === 0 || Y.length === 0) {
+        document.getElementById("chart").innerHTML = "<p style='text-align:center;'>No valid data to display.</p>";
+        return;
+      }
 
       const trace = {
         x: X,
