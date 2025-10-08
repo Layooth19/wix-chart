@@ -12,8 +12,11 @@
   <h2 style="text-align:center;">Fuse Time-Current Curves</h2>
 
   <div style="text-align:center; margin:20px;">
-    <label for="fuseDropdown">Select a Fuse Type:</label>
+    <label for="fuseDropdown">Select Fuse Type:</label>
     <select id="fuseDropdown"></select>
+
+    <label for="ratingDropdown" style="margin-left:20px;">Select Current Rating:</label>
+    <select id="ratingDropdown"></select>
   </div>
 
   <div class="wrap">
@@ -33,24 +36,43 @@
       const data = await response.json();
       window.fuseData = data;
 
-      const dropdown = document.getElementById("fuseDropdown");
+      const fuseDropdown = document.getElementById("fuseDropdown");
+      const ratingDropdown = document.getElementById("ratingDropdown");
 
-      function populateDropdown(fuseNames = Object.keys(data)) {
-        dropdown.innerHTML = "";
-        fuseNames.forEach(fuse => {
+      function populateFuseDropdown() {
+        fuseDropdown.innerHTML = "";
+        Object.keys(data).forEach(fuse => {
           const opt = document.createElement("option");
           opt.value = fuse;
           opt.text = fuse;
-          dropdown.appendChild(opt);
+          fuseDropdown.appendChild(opt);
         });
-        if (fuseNames.length > 0) {
-          plotFuse(fuseNames[0], data);
+        populateRatingDropdown(fuseDropdown.value);
+      }
+
+      function populateRatingDropdown(fuseName) {
+        ratingDropdown.innerHTML = "";
+        const ratings = Object.keys(data[fuseName] || {});
+        ratings.forEach(rating => {
+          const opt = document.createElement("option");
+          opt.value = rating;
+          opt.text = rating;
+          ratingDropdown.appendChild(opt);
+        });
+        if (ratings.length > 0) {
+          plotFuse(fuseName, ratings[0], data);
         }
       }
 
-      populateDropdown();
+      fuseDropdown.addEventListener("change", () => {
+        populateRatingDropdown(fuseDropdown.value);
+      });
 
-      dropdown.addEventListener("change", () => plotFuse(dropdown.value, data));
+      ratingDropdown.addEventListener("change", () => {
+        plotFuse(fuseDropdown.value, ratingDropdown.value, data);
+      });
+
+      populateFuseDropdown();
     }
 
     function prepSeries(xs, ys) {
@@ -62,28 +84,24 @@
       return { X, Y };
     }
 
-    function plotFuse(fuseName, data) {
-      const fuseCurves = data[fuseName];
-      const traces = [];
+    function plotFuse(fuseName, rating, data) {
+      const timeCurrentMap = data[fuseName][rating];
+      const rawY = Object.keys(timeCurrentMap);   // time values
+      const rawX = Object.values(timeCurrentMap); // current values
 
-      Object.entries(fuseCurves).forEach(([rating, timeCurrentMap]) => {
-        const rawY = Object.keys(timeCurrentMap);   // time values
-        const rawX = Object.values(timeCurrentMap); // current values
+      const { X, Y } = prepSeries(rawX, rawY);
 
-        const { X, Y } = prepSeries(rawX, rawY);
-
-        traces.push({
-          x: X,
-          y: Y,
-          mode: "lines",
-          type: "scatter",
-          name: `${rating}`,
-          line: { width: 2 }
-        });
-      });
+      const trace = {
+        x: X,
+        y: Y,
+        mode: "lines+markers",
+        type: "scatter",
+        name: `${rating}`,
+        line: { width: 2 }
+      };
 
       const layout = {
-        title: `Time-Current Curves: ${fuseName}`,
+        title: `Time-Current Curve: ${fuseName} (${rating})`,
         hovermode: "closest",
         xaxis: {
           title: "Current (A)",
@@ -96,7 +114,7 @@
         margin: { l: 70, r: 20, t: 60, b: 60 }
       };
 
-      Plotly.newPlot("chart", traces, layout, PLOT_CONFIG);
+      Plotly.newPlot("chart", [trace], layout, PLOT_CONFIG);
     }
 
     loadData();
