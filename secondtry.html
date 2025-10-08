@@ -85,9 +85,9 @@
     }
 
     function plotFuse(fuseName, rating, data) {
-      const timeCurrentMap = data[fuseName][rating];
-      const rawY = Object.keys(timeCurrentMap);   // time values
-      const rawX = Object.values(timeCurrentMap); // current values
+      const ratingData = data[fuseName][rating];
+      const rawX = ratingData.current;
+      const rawY = ratingData.time;
 
       const { X, Y } = prepSeries(rawX, rawY);
 
