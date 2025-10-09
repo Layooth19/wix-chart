@@ -2,25 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Fuse Time-Current Curves</title>
+  <title>Fuse Selector - Time-Current Curves</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    .wrap { position: relative; width: 90%; height: 80vh; margin: 0 auto; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      max-width: 800px;
+      margin: 0 auto 20px;
+    }
+    .input-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .input-field {
+      flex: 1;
+      min-width: 200px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .fuse-list {
+      margin-top: 15px;
+    }
+    #fuseSelect {
+      margin-top: 10px;
+    }
+    .info-text {
+      color: #666;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .chart-wrapper {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    #chart {
+      width: 100%;
+      height: 600px;
+    }
+    .error {
+      color: #d32f2f;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;">Fuse Time-Current Curves</h2>
+  <h2>Fuse Selector - Time-Current Curves</h2>
 
-  <div style="text-align:center; margin:20px;">
-    <label for="fuseDropdown">Select Fuse Type:</label>
-    <select id="fuseDropdown"></select>
-
-    <label for="ratingDropdown" style="margin-left:20px;">Select Current Rating:</label>
-    <select id="ratingDropdown"></select>
+  <div class="controls">
+    <div class="input-group">
+      <div class="input-field">
+        <label for="currentInput">Current Rating (A):</label>
+        <input type="number" id="currentInput" placeholder="Enter current rating" min="0" step="1" />
+      </div>
+      <div class="input-field">
+        <label for="voltageInput">Voltage Rating (V):</label>
+        <input type="number" id="voltageInput" placeholder="Enter voltage rating" min="0" step="1" />
+      </div>
+    </div>
+    
+    <button id="searchBtn">Search Fuses</button>
+    
+    <div class="fuse-list" id="fuseListContainer" style="display: none;">
+      <label for="fuseSelect">Select Fuse Part Number:</label>
+      <select id="fuseSelect" size="8"></select>
+      <p class="info-text" id="infoText"></p>
+    </div>
+    
+    <p class="error" id="errorMsg"></p>
   </div>
 
-  <div class="wrap">
-    <div id="chart" style="width:100%;height:100%;"></div>
+  <div class="chart-wrapper">
+    <div id="chart"></div>
   </div>
 
   <script>
@@ -33,49 +132,93 @@
 
     let denseTraceIndex = 1;
     let cursorTraceIndex = 2;
+    let partsData = [];
+    let tccData = {};
+    let currentSelection = null;
 
     async function loadData() {
-      const response = await fetch("tcc_restructured.json");
-      const data = await response.json();
-      window.fuseData = data;
-
-      const fuseDropdown = document.getElementById("fuseDropdown");
-      const ratingDropdown = document.getElementById("ratingDropdown");
-
-      function populateFuseDropdown() {
-        fuseDropdown.innerHTML = "";
-        Object.keys(data).forEach(fuse => {
-          const opt = document.createElement("option");
-          opt.value = fuse;
-          opt.text = fuse;
-          fuseDropdown.appendChild(opt);
-        });
-        populateRatingDropdown(fuseDropdown.value);
+      try {
+        const [partsResponse, tccResponse] = await Promise.all([
+          fetch("parts_catalog.json"),
+          fetch("tcc_restructured.json")
+        ]);
+        
+        partsData = await partsResponse.json();
+        tccData = await tccResponse.json();
+        
+        console.log("Data loaded successfully");
+      } catch (error) {
+        document.getElementById("errorMsg").textContent = "Error loading data files. Please ensure parts_catalog.json and tcc_restructured.json are available.";
+        console.error("Error loading data:", error);
       }
+    }
 
-      function populateRatingDropdown(fuseName) {
-        ratingDropdown.innerHTML = "";
-        const ratings = Object.keys(data[fuseName] || {});
-        ratings.forEach(rating => {
-          const opt = document.createElement("option");
-          opt.value = rating;
-          opt.text = rating;
-          ratingDropdown.appendChild(opt);
-        });
-        if (ratings.length > 0) {
-          plotFuse(fuseName, ratings[0], data);
+    function searchFuses() {
+      const currentInput = parseFloat(document.getElementById("currentInput").value);
+      const voltageInput = parseFloat(document.getElementById("voltageInput").value);
+      const errorMsg = document.getElementById("errorMsg");
+      const fuseListContainer = document.getElementById("fuseListContainer");
+      const fuseSelect = document.getElementById("fuseSelect");
+      
+      errorMsg.textContent = "";
+      fuseSelect.innerHTML = "";
+      
+      if (isNaN(currentInput) || isNaN(voltageInput)) {
+        errorMsg.textContent = "Please enter valid current and voltage ratings.";
+        fuseListContainer.style.display = "none";
+        return;
+      }
+      
+      const matchingFuses = partsData.filter(part => 
+        part.I === currentInput && part.V >= voltageInput
+      );
+      
+      if (matchingFuses.length === 0) {
+        errorMsg.textContent = `No fuses found with ${currentInput}A current rating and voltage rating >= ${voltageInput}V.`;
+        fuseListContainer.style.display = "none";
+        return;
+      }
+      
+      matchingFuses.forEach(fuse => {
+        const option = document.createElement("option");
+        option.value = JSON.stringify(fuse);
+        option.textContent = `${fuse.part} (${fuse.family}, ${fuse.I}A, ${fuse.V}V)`;
+        fuseSelect.appendChild(option);
+      });
+      
+      fuseListContainer.style.display = "block";
+      document.getElementById("infoText").textContent = `Found ${matchingFuses.length} matching fuse(s).`;
+    }
+
+    function onFuseSelected() {
+      const fuseSelect = document.getElementById("fuseSelect");
+      const errorMsg = document.getElementById("errorMsg");
+      
+      if (!fuseSelect.value) return;
+      
+      try {
+        const selectedFuse = JSON.parse(fuseSelect.value);
+        currentSelection = selectedFuse;
+        
+        const family = selectedFuse.family;
+        const rating = `${selectedFuse.I}A`;
+        
+        if (!tccData[family]) {
+          errorMsg.textContent = `No TCC data found for family: ${family}`;
+          return;
         }
+        
+        if (!tccData[family][rating]) {
+          errorMsg.textContent = `No TCC data found for ${rating} in family ${family}`;
+          return;
+        }
+        
+        errorMsg.textContent = "";
+        plotFuse(selectedFuse, tccData[family][rating]);
+      } catch (error) {
+        errorMsg.textContent = "Error displaying fuse data.";
+        console.error("Error:", error);
       }
-
-      fuseDropdown.addEventListener("change", () => {
-        populateRatingDropdown(fuseDropdown.value);
-      });
-
-      ratingDropdown.addEventListener("change", () => {
-        plotFuse(fuseDropdown.value, ratingDropdown.value, data);
-      });
-
-      populateFuseDropdown();
     }
 
     function prepSeries(xs, ys) {
@@ -117,8 +260,7 @@
       return { denseX, denseY };
     }
 
-    function plotFuse(fuseName, rating, data) {
-      const ratingData = data[fuseName][rating];
+    function plotFuse(fuse, ratingData) {
       const rawX = ratingData.current;
       const rawY = ratingData.time;
 
@@ -129,7 +271,7 @@
         x: X, y: Y, mode: "lines", type: "scatter",
         line: { width: 2 },
         hoverinfo: "skip",
-        name: `${rating} (raw)`
+        name: `${fuse.I}A (raw)`
       };
 
       const traceDense = {
@@ -151,10 +293,10 @@
       const yMin = Math.min(...Y), yMax = Math.max(...Y);
 
       const layout = {
-        title: `Time-Current Curve: ${fuseName} (${rating})`,
+        title: `Time-Current Curve: ${fuse.part} (${fuse.family}, ${fuse.I}A, ${fuse.V}V)`,
         hovermode: "x unified",
         dragmode: "pan",
-        uirevision: fuseName + rating,
+        uirevision: fuse.part,
         xaxis: {
           title: "Current (A)",
           type: "log",
@@ -202,8 +344,18 @@
       });
     }
 
+    document.getElementById("searchBtn").addEventListener("click", searchFuses);
+    document.getElementById("fuseSelect").addEventListener("change", onFuseSelected);
+    
+    document.getElementById("currentInput").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") searchFuses();
+    });
+    
+    document.getElementById("voltageInput").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") searchFuses();
+    });
+
     loadData();
   </script>
 </body>
 </html>
-
