@@ -95,7 +95,7 @@
   <script>
     // ---------- constants & state ----------
     const PLOT_CONFIG = {responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false};
-    const partsUrl = 'parts_catalog.json';
+    const partsUrl = 'parts_catalog_fixed.json';
     const tccUrl = 'tcc_restructured.json';
 
     let partsData = [];
@@ -314,7 +314,7 @@
     // ---------- init ----------
     loadData().catch(err=>{
       console.error(err);
-      showError('Error loading data. Make sure parts_catalog.json and tcc_restructured.json are served alongside this file.');
+      showError('Error loading data. Make sure parts_catalog_fixed.json and tcc_restructured.json are served alongside this file.');
     });
   </script>
 </body>
