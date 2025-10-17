@@ -336,57 +336,72 @@
 
       Plotly.newPlot('chart', [traceDense, traceOriginal, traceCursor], layout, PLOT_CONFIG).then(gd=>{
         const host = gd;
-
+      
         let raf = null;
         let lastEvt = null;
-
+      
+        // Create floating tooltip element
+        const tooltip = document.createElement('div');
+        tooltip.style.position = 'absolute';
+        tooltip.style.background = 'rgba(255,255,255,0.95)';
+        tooltip.style.border = '1px solid #ccc';
+        tooltip.style.borderRadius = '6px';
+        tooltip.style.padding = '6px 10px';
+        tooltip.style.fontSize = '13px';
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.transition = 'transform 0.05s linear';
+        tooltip.style.whiteSpace = 'nowrap';
+        tooltip.style.display = 'none';
+        gd.appendChild(tooltip);
+      
         function schedule(e){
           const rect = host.getBoundingClientRect();
           const px = e.clientX - rect.left;
           const py = e.clientY - rect.top;
-
+      
           const xax = gd._fullLayout.xaxis;
           const yax = gd._fullLayout.yaxis;
-
           const x0 = xax._offset, xw = xax._length;
           const y0 = yax._offset, yh = yax._length;
-
-          // Only update if inside plotting area
+      
           if (px < x0 || px > x0 + xw || py < y0 || py > y0 + yh) {
-            Plotly.Fx.unhover(gd);
+            tooltip.style.display = 'none';
             return;
           }
-
-          lastEvt = { px, py, x0, xw, y0, yh, xax, yax };
-
+      
+          lastEvt = { px, py, x0, xw, xax, yax };
           if (raf) return;
+      
           raf = requestAnimationFrame(()=>{
-            const { px, x0, xw, y0, yh, xax, yax } = lastEvt;
-
-            // map mouse x to data x (log scale)
+            const { px, x0, xw, xax, yax } = lastEvt;
             const rx = (px - x0) / xw;
             const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
-            const x  = Math.pow(10, lx);
-
-            // snap to curve: pick closest precomputed dense point by x
+            const x = Math.pow(10, lx);
+      
+            // snap to curve
             const idx = nearestIndex(currentDenseX, x);
             const cx = currentDenseX[idx];
             const cy = currentDenseY[idx];
-
+      
             Plotly.restyle(gd, { x: [[cx]], y: [[cy]] }, [CURSOR_TRACE_INDEX]);
-            Plotly.Fx.hover(gd, [{ curveNumber: CURSOR_TRACE_INDEX, pointNumber: 0 }], ['xy']);
-
+      
+            tooltip.textContent = `Current: ${cx.toFixed(2)} A | Time: ${cy.toExponential(2)} s`;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top  = (e.clientY - 20) + 'px';
+      
             raf = null;
           });
-        }
+  }
 
-        function leave(){
-          Plotly.Fx.unhover(gd);
-        }
+  function leave(){
+    tooltip.style.display = 'none';
+  }
 
-        host.addEventListener('mousemove', schedule);
-        host.addEventListener('mouseleave', leave);
-      });
+  host.addEventListener('mousemove', schedule);
+  host.addEventListener('mouseleave', leave);
+});
+
     }
 
     // ---------- events ----------
@@ -411,3 +426,4 @@
   </script>
 </body>
 </html>
+
