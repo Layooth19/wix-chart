@@ -95,7 +95,7 @@
   <script>
     // ---------- constants & state ----------
     const PLOT_CONFIG = {responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false};
-    const partsUrl = 'parts_catalog_fixed.json';          // keep these files next to this HTML
+    const partsUrl = 'parts_catalog_fixed.json';
     const tccUrl   = 'tcc_restructured.json';
 
     const DENSE_TRACE_INDEX  = 0;
@@ -115,7 +115,6 @@
       try {
         return JSON.parse(txt);
       } catch {
-        // lightweight repair for arrays missing commas between objects
         const fixed = txt.replace(/}\s*\n\s*{/g, '},\n{');
         return JSON.parse(fixed);
       }
@@ -181,7 +180,7 @@
         return;
       }
 
-      // exact voltage match (no >=)
+      // exact voltage match
       const matches = partsData.filter(p => p.I === I && p.V === Vreq);
 
       if(matches.length === 0){
@@ -256,7 +255,6 @@
       const denseX=[], denseY=[];
       for(let k=0;k<samples;k++){
         const q = lxMin + dx*k;
-        // binary search upper bound
         let lo=0, hi=lx.length-1, j=lx.length-1;
         while(lo<=hi){
           const m=(lo+hi)>>1;
@@ -279,21 +277,19 @@
       const samples = Number(document.getElementById('smoothPoints').value) || 500;
       const {denseX, denseY} = interpolateLogLog(X,Y,samples);
 
-      // Interpolated curve (we'll use this for guidance only)
       const traceDense = {
         x:denseX, y:denseY, mode:'lines', type:'scatter',
         name:'Interpolated',
         line:{width:2, dash:'dot'},
-        hoverinfo:'skip' // we will drive hover manually for the cursor
+        hoverinfo:'skip'
       };
 
-      // Raw points for reference
       const traceOriginal = {
         x:X, y:Y, mode:'lines+markers', type:'scatter',
         name:'Raw points', line:{width:2}, marker:{size:6}
       };
 
-      // Cursor point that follows the mouse anywhere inside the plot area
+      // Cursor marker (we'll drive it with mousemove)
       const traceCursor = {
         x:[denseX[0]], y:[denseY[0]],
         mode:'markers', type:'scatter', name:'Cursor',
@@ -315,55 +311,60 @@
       };
 
       Plotly.newPlot('chart', [traceDense, traceOriginal, traceCursor], layout, PLOT_CONFIG).then(gd=>{
-        // --- fast, continuous cursor tracking across the entire plot region ---
-        const plotBg = gd.querySelector('.cartesianlayer .bg'); // the plot area rectangle
-        if(!plotBg) return;
+        // Use the main graph div for robust event capture
+        const host = gd; // the #chart div's inner graph container
 
-        let animFrame = null;
-        let pending = null;
+        let raf = null;
+        let last = null;
 
-        function dataRanges() {
-          // current log ranges (respect zoom/pan)
-          const xr = (gd.layout.xaxis && gd.layout.xaxis.range) || gd._fullLayout.xaxis.range;
-          const yr = (gd.layout.yaxis && gd.layout.yaxis.range) || gd._fullLayout.yaxis.range;
-          return { lx0:xr[0], lx1:xr[1], ly0:yr[0], ly1:yr[1] };
-        }
+        function schedule(e){
+          const rect = host.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
 
-        function scheduleUpdate(ev) {
-          const rect = plotBg.getBoundingClientRect();
-          const px = ev.clientX - rect.left;
-          const py = ev.clientY - rect.top;
-          if (px < 0 || py < 0 || px > rect.width || py > rect.height) { return; }
+          // Access full layout axis geometry (respects zoom/pan)
+          const xax = gd._fullLayout.xaxis;
+          const yax = gd._fullLayout.yaxis;
 
-          pending = { px, py, w:rect.width, h:rect.height };
-          if (animFrame) return; // already queued
+          const x0 = xax._offset, xw = xax._length;
+          const y0 = yax._offset, yh = yax._length;
 
-          animFrame = requestAnimationFrame(()=>{
-            const { px, py, w, h } = pending;
-            const { lx0, lx1, ly0, ly1 } = dataRanges();
+          // Only update if inside plotting area
+          if (px < x0 || px > x0 + xw || py < y0 || py > y0 + yh) {
+            Plotly.Fx.unhover(gd);
+            return;
+          }
 
-            // convert pixels -> data using log ranges
-            const rx = px / w;
-            const ry = 1 - (py / h); // invert Y
-            const lx = lx0 + rx * (lx1 - lx0);
-            const ly = ly0 + ry * (ly1 - ly0);
-            const x  = Math.pow(10, lx);
-            const y  = Math.pow(10, ly);
+          last = { px, py, x0, xw, y0, yh, xax, yax };
+
+          if (raf) return;
+          raf = requestAnimationFrame(()=>{
+            const { px, py, x0, xw, y0, yh, xax, yax } = last;
+
+            // Normalize to [0,1] in plot area
+            const rx = (px - x0) / xw;
+            const ry = 1 - ((py - y0) / yh);
+
+            // Convert to log coordinates -> data
+            const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
+            const ly = yax.range[0] + ry * (yax.range[1] - yax.range[0]);
+
+            const x = Math.pow(10, lx);
+            const y = Math.pow(10, ly);
 
             Plotly.restyle(gd, { x: [[x]], y: [[y]] }, [CURSOR_TRACE_INDEX]);
-            // force tooltip next to the cursor point
             Plotly.Fx.hover(gd, [{ curveNumber: CURSOR_TRACE_INDEX, pointNumber: 0 }], ['xy']);
 
-            animFrame = null;
+            raf = null;
           });
         }
 
-        function leave() {
+        function leave(){
           Plotly.Fx.unhover(gd);
         }
 
-        plotBg.addEventListener('mousemove', scheduleUpdate);
-        plotBg.addEventListener('mouseleave', leave);
+        host.addEventListener('mousemove', schedule);
+        host.addEventListener('mouseleave', leave);
       });
     }
 
@@ -384,7 +385,7 @@
     // ---------- init ----------
     loadData().catch(err=>{
       console.error(err);
-      showError('Error loading data. Make sure parts_catalog_fixed.json and tcc_restructured.json are served alongside this file.');
+      showError('Error loading data. Make sure parts_catalog.json and tcc_restructured.json are served alongside this file.');
     });
   </script>
 </body>
