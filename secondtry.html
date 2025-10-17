@@ -107,16 +107,16 @@
     let tccData = {};
     let selectedFuse = null;
 
-    // ---------- robust JSON loader (handles missing commas between objects) ----------
+    // ---------- robust JSON loader ----------
     async function loadJSON(url) {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status} while loading ${url}`);
       const txt = await res.text();
       try {
         return JSON.parse(txt);
-      } catch (e) {
+      } catch {
         // lightweight repair for arrays missing commas between objects
-        const fixed = txt.replace(/}\\s*\\n\\s*{/g, '},\\n{');
+        const fixed = txt.replace(/}\s*\n\s*{/g, '},\n{');
         return JSON.parse(fixed);
       }
     }
@@ -279,12 +279,12 @@
       const samples = Number(document.getElementById('smoothPoints').value) || 500;
       const {denseX, denseY} = interpolateLogLog(X,Y,samples);
 
-      // Interpolated curve (hover shows desired label)
+      // Interpolated curve (we'll use this for guidance only)
       const traceDense = {
         x:denseX, y:denseY, mode:'lines', type:'scatter',
         name:'Interpolated',
         line:{width:2, dash:'dot'},
-        hovertemplate:'Current: %{x} A<br>Time: %{y} s<extra></extra>'  // custom label
+        hoverinfo:'skip' // we will drive hover manually for the cursor
       };
 
       // Raw points for reference
@@ -293,12 +293,12 @@
         name:'Raw points', line:{width:2}, marker:{size:6}
       };
 
-      // Cursor point that follows the mouse
+      // Cursor point that follows the mouse anywhere inside the plot area
       const traceCursor = {
         x:[denseX[0]], y:[denseY[0]],
         mode:'markers', type:'scatter', name:'Cursor',
         marker:{ size:12, symbol:'circle', line:{width:2} },
-        hoverinfo:'skip' // label comes from the dense trace so it appears next to this point
+        hovertemplate:'Current: %{x} A<br>Time: %{y} s<extra></extra>'
       };
 
       const xMin = Math.min(...X), xMax=Math.max(...X);
@@ -306,7 +306,7 @@
 
       const layout = {
         title: `${fuse.part} — ${fuse.family} — ${fuse.I}A @ ${fuse.V}V`,
-        hovermode:'closest',  // label follows the closest point
+        hovermode:'closest',
         dragmode:'pan',
         uirevision:`${fuse.part}`,
         xaxis:{ type:'log', title:'Current (A)', range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9' },
@@ -315,13 +315,55 @@
       };
 
       Plotly.newPlot('chart', [traceDense, traceOriginal, traceCursor], layout, PLOT_CONFIG).then(gd=>{
-        gd.on('plotly_hover', (ev)=>{
-          if(!ev.points || !ev.points.length) return;
-          const pt = ev.points[0];
-          // only react to hovering on the interpolated (dense) curve
-          if(pt.curveNumber !== DENSE_TRACE_INDEX) return;
-          Plotly.restyle(gd, { x: [[pt.x]], y: [[pt.y]] }, [CURSOR_TRACE_INDEX]);
-        });
+        // --- fast, continuous cursor tracking across the entire plot region ---
+        const plotBg = gd.querySelector('.cartesianlayer .bg'); // the plot area rectangle
+        if(!plotBg) return;
+
+        let animFrame = null;
+        let pending = null;
+
+        function dataRanges() {
+          // current log ranges (respect zoom/pan)
+          const xr = (gd.layout.xaxis && gd.layout.xaxis.range) || gd._fullLayout.xaxis.range;
+          const yr = (gd.layout.yaxis && gd.layout.yaxis.range) || gd._fullLayout.yaxis.range;
+          return { lx0:xr[0], lx1:xr[1], ly0:yr[0], ly1:yr[1] };
+        }
+
+        function scheduleUpdate(ev) {
+          const rect = plotBg.getBoundingClientRect();
+          const px = ev.clientX - rect.left;
+          const py = ev.clientY - rect.top;
+          if (px < 0 || py < 0 || px > rect.width || py > rect.height) { return; }
+
+          pending = { px, py, w:rect.width, h:rect.height };
+          if (animFrame) return; // already queued
+
+          animFrame = requestAnimationFrame(()=>{
+            const { px, py, w, h } = pending;
+            const { lx0, lx1, ly0, ly1 } = dataRanges();
+
+            // convert pixels -> data using log ranges
+            const rx = px / w;
+            const ry = 1 - (py / h); // invert Y
+            const lx = lx0 + rx * (lx1 - lx0);
+            const ly = ly0 + ry * (ly1 - ly0);
+            const x  = Math.pow(10, lx);
+            const y  = Math.pow(10, ly);
+
+            Plotly.restyle(gd, { x: [[x]], y: [[y]] }, [CURSOR_TRACE_INDEX]);
+            // force tooltip next to the cursor point
+            Plotly.Fx.hover(gd, [{ curveNumber: CURSOR_TRACE_INDEX, pointNumber: 0 }], ['xy']);
+
+            animFrame = null;
+          });
+        }
+
+        function leave() {
+          Plotly.Fx.unhover(gd);
+        }
+
+        plotBg.addEventListener('mousemove', scheduleUpdate);
+        plotBg.addEventListener('mouseleave', leave);
       });
     }
 
