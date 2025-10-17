@@ -33,7 +33,7 @@
     .error{color:#b91c1c;margin-top:6px}
 
     #fuseSelect{height:200px}
-    #chart{height:640px}
+    #chart{height:640px; position: relative;}
     .badge{display:inline-flex;gap:6px;align-items:center;background:#f1f5f9;border-radius:999px;padding:4px 10px;font-size:12px;color:#0f172a}
     .stack{display:flex;flex-wrap:wrap;gap:8px}
   </style>
@@ -95,7 +95,7 @@
   <script>
     // ---------- constants & state ----------
     const PLOT_CONFIG = {responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false};
-    const partsUrl = 'parts_catalog_fixed.json';     // <<— updated file name
+    const partsUrl = 'parts_catalog_fixed.json';     // using the fixed catalog
     const tccUrl   = 'tcc_restructured.json';
 
     const DENSE_TRACE_INDEX  = 0;
@@ -107,7 +107,7 @@
     let tccData = {};
     let selectedFuse = null;
 
-    // Store current dense curve for fast snapping along the line
+    // current interpolated curve for snapping
     let currentDenseX = [];
     let currentDenseY = [];
 
@@ -119,8 +119,7 @@
       try {
         return JSON.parse(txt);
       } catch {
-        // lightweight repair for arrays missing commas between objects
-        const fixed = txt.replace(/}\s*\n\s*{/g, '},\n{');
+        const fixed = txt.replace(/}\\s*\\n\\s*{/g, '},\\n{');
         return JSON.parse(fixed);
       }
     }
@@ -275,7 +274,7 @@
       return {denseX, denseY};
     }
 
-    // Find the index in sorted array 'arr' whose value is closest to x
+    // Find nearest index in ascending array 'arr' to x
     function nearestIndex(arr, x){
       let lo = 0, hi = arr.length - 1;
       if (x <= arr[0]) return 0;
@@ -286,7 +285,6 @@
         if (arr[mid] < x) lo = mid + 1;
         else hi = mid - 1;
       }
-      // lo is first greater-than position
       const i1 = Math.max(0, lo - 1);
       const i2 = Math.min(arr.length - 1, lo);
       return (Math.abs(arr[i1] - x) <= Math.abs(arr[i2] - x)) ? i1 : i2;
@@ -318,7 +316,7 @@
         x:[currentDenseX[0]], y:[currentDenseY[0]],
         mode:'markers', type:'scatter', name:'Cursor',
         marker:{ size:12, symbol:'circle', line:{width:2} },
-        hovertemplate:'Current: %{x} A<br>Time: %{y} s<extra></extra>'
+        hoverinfo:'skip'
       };
 
       const xMin = Math.min(...X), xMax=Math.max(...X);
@@ -335,73 +333,89 @@
       };
 
       Plotly.newPlot('chart', [traceDense, traceOriginal, traceCursor], layout, PLOT_CONFIG).then(gd=>{
-        const host = gd;
-      
+        const host = gd; // inner graph div
         let raf = null;
         let lastEvt = null;
-      
-        // Create floating tooltip element
+
+        // Create a persistent tooltip (always visible when inside plot)
         const tooltip = document.createElement('div');
-        tooltip.style.position = 'absolute';
+        tooltip.style.position = 'fixed';          // track viewport coords
         tooltip.style.background = 'rgba(255,255,255,0.95)';
         tooltip.style.border = '1px solid #ccc';
         tooltip.style.borderRadius = '6px';
         tooltip.style.padding = '6px 10px';
         tooltip.style.fontSize = '13px';
         tooltip.style.pointerEvents = 'none';
-        tooltip.style.transition = 'transform 0.05s linear';
         tooltip.style.whiteSpace = 'nowrap';
+        tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,.08)';
         tooltip.style.display = 'none';
-        gd.appendChild(tooltip);
-      
+        document.body.appendChild(tooltip);
+
         function schedule(e){
           const rect = host.getBoundingClientRect();
           const px = e.clientX - rect.left;
           const py = e.clientY - rect.top;
-      
+
           const xax = gd._fullLayout.xaxis;
           const yax = gd._fullLayout.yaxis;
+
           const x0 = xax._offset, xw = xax._length;
           const y0 = yax._offset, yh = yax._length;
-      
+
+          // Only update if inside plotting area
           if (px < x0 || px > x0 + xw || py < y0 || py > y0 + yh) {
             tooltip.style.display = 'none';
             return;
           }
-      
-          lastEvt = { px, py, x0, xw, xax, yax };
+
+          lastEvt = { clientX: e.clientX, clientY: e.clientY, px, x0, xw, xax };
           if (raf) return;
-      
+
           raf = requestAnimationFrame(()=>{
-            const { px, x0, xw, xax, yax } = lastEvt;
+            const { clientX, clientY, px, x0, xw, xax } = lastEvt;
+
+            // map mouse x to data x (log scale)
             const rx = (px - x0) / xw;
             const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
-            const x = Math.pow(10, lx);
-      
-            // snap to curve
+            const x  = Math.pow(10, lx);
+
+            // snap to curve by nearest dense x
             const idx = nearestIndex(currentDenseX, x);
             const cx = currentDenseX[idx];
             const cy = currentDenseY[idx];
-      
+
             Plotly.restyle(gd, { x: [[cx]], y: [[cy]] }, [CURSOR_TRACE_INDEX]);
-      
-            tooltip.textContent = `Current: ${cx.toFixed(2)} A | Time: ${cy.toExponential(2)} s`;
+
+            // Always-on tooltip next to the cursor
+            tooltip.textContent = `Current: ${fmtNumber(cx)} A  |  Time: ${fmtTime(cy)} s`;
             tooltip.style.display = 'block';
-            tooltip.style.left = (e.clientX + 15) + 'px';
-            tooltip.style.top  = (e.clientY - 20) + 'px';
-      
+            tooltip.style.left = (clientX + 14) + 'px';
+            tooltip.style.top  = (clientY - 18) + 'px';
+
             raf = null;
           });
-  }
+        }
 
-  function leave(){
-    tooltip.style.display = 'none';
-  }
+        function leave(){
+          tooltip.style.display = 'none';
+        }
 
-  host.addEventListener('mousemove', schedule);
-  host.addEventListener('mouseleave', leave);
-});
+        host.addEventListener('mousemove', schedule);
+        host.addEventListener('mouseleave', leave);
+      });
+    }
 
+    // ---------- formatting helpers ----------
+    function fmtNumber(v){
+      if (v >= 1000) return v.toFixed(0);
+      if (v >= 100)  return v.toFixed(1);
+      if (v >= 10)   return v.toFixed(2);
+      if (v >= 1)    return v.toFixed(3);
+      return v.toExponential(2);
+    }
+    function fmtTime(v){
+      if (v >= 1) return v.toFixed(3);
+      return v.toExponential(2);
     }
 
     // ---------- events ----------
@@ -426,4 +440,3 @@
   </script>
 </body>
 </html>
-
