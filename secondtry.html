@@ -95,7 +95,7 @@
   <script>
     // ---------- constants & state ----------
     const PLOT_CONFIG = {responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false};
-    const partsUrl = 'parts_catalog_fixed.json';
+    const partsUrl = 'parts_catalog_fixed.json';     // <<— updated file name
     const tccUrl   = 'tcc_restructured.json';
 
     const DENSE_TRACE_INDEX  = 0;
@@ -107,6 +107,10 @@
     let tccData = {};
     let selectedFuse = null;
 
+    // Store current dense curve for fast snapping along the line
+    let currentDenseX = [];
+    let currentDenseY = [];
+
     // ---------- robust JSON loader ----------
     async function loadJSON(url) {
       const res = await fetch(url);
@@ -115,6 +119,7 @@
       try {
         return JSON.parse(txt);
       } catch {
+        // lightweight repair for arrays missing commas between objects
         const fixed = txt.replace(/}\s*\n\s*{/g, '},\n{');
         return JSON.parse(fixed);
       }
@@ -255,6 +260,7 @@
       const denseX=[], denseY=[];
       for(let k=0;k<samples;k++){
         const q = lxMin + dx*k;
+        // binary search upper bound
         let lo=0, hi=lx.length-1, j=lx.length-1;
         while(lo<=hi){
           const m=(lo+hi)>>1;
@@ -269,16 +275,35 @@
       return {denseX, denseY};
     }
 
+    // Find the index in sorted array 'arr' whose value is closest to x
+    function nearestIndex(arr, x){
+      let lo = 0, hi = arr.length - 1;
+      if (x <= arr[0]) return 0;
+      if (x >= arr[hi]) return hi;
+      while (lo <= hi){
+        const mid = (lo + hi) >> 1;
+        if (arr[mid] === x) return mid;
+        if (arr[mid] < x) lo = mid + 1;
+        else hi = mid - 1;
+      }
+      // lo is first greater-than position
+      const i1 = Math.max(0, lo - 1);
+      const i2 = Math.min(arr.length - 1, lo);
+      return (Math.abs(arr[i1] - x) <= Math.abs(arr[i2] - x)) ? i1 : i2;
+    }
+
     function plotCurve(fuse, ratingData){
       const rawX = ratingData.current; // Amps
       const rawY = ratingData.time;    // Seconds
 
       const {X, Y} = prepSeries(rawX, rawY);
       const samples = Number(document.getElementById('smoothPoints').value) || 500;
-      const {denseX, denseY} = interpolateLogLog(X,Y,samples);
+      const dense = interpolateLogLog(X, Y, samples);
+      currentDenseX = dense.denseX;
+      currentDenseY = dense.denseY;
 
       const traceDense = {
-        x:denseX, y:denseY, mode:'lines', type:'scatter',
+        x:currentDenseX, y:currentDenseY, mode:'lines', type:'scatter',
         name:'Interpolated',
         line:{width:2, dash:'dot'},
         hoverinfo:'skip'
@@ -289,9 +314,8 @@
         name:'Raw points', line:{width:2}, marker:{size:6}
       };
 
-      // Cursor marker (we'll drive it with mousemove)
       const traceCursor = {
-        x:[denseX[0]], y:[denseY[0]],
+        x:[currentDenseX[0]], y:[currentDenseY[0]],
         mode:'markers', type:'scatter', name:'Cursor',
         marker:{ size:12, symbol:'circle', line:{width:2} },
         hovertemplate:'Current: %{x} A<br>Time: %{y} s<extra></extra>'
@@ -311,18 +335,16 @@
       };
 
       Plotly.newPlot('chart', [traceDense, traceOriginal, traceCursor], layout, PLOT_CONFIG).then(gd=>{
-        // Use the main graph div for robust event capture
-        const host = gd; // the #chart div's inner graph container
+        const host = gd;
 
         let raf = null;
-        let last = null;
+        let lastEvt = null;
 
         function schedule(e){
           const rect = host.getBoundingClientRect();
           const px = e.clientX - rect.left;
           const py = e.clientY - rect.top;
 
-          // Access full layout axis geometry (respects zoom/pan)
           const xax = gd._fullLayout.xaxis;
           const yax = gd._fullLayout.yaxis;
 
@@ -335,24 +357,23 @@
             return;
           }
 
-          last = { px, py, x0, xw, y0, yh, xax, yax };
+          lastEvt = { px, py, x0, xw, y0, yh, xax, yax };
 
           if (raf) return;
           raf = requestAnimationFrame(()=>{
-            const { px, py, x0, xw, y0, yh, xax, yax } = last;
+            const { px, x0, xw, y0, yh, xax, yax } = lastEvt;
 
-            // Normalize to [0,1] in plot area
+            // map mouse x to data x (log scale)
             const rx = (px - x0) / xw;
-            const ry = 1 - ((py - y0) / yh);
-
-            // Convert to log coordinates -> data
             const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
-            const ly = yax.range[0] + ry * (yax.range[1] - yax.range[0]);
+            const x  = Math.pow(10, lx);
 
-            const x = Math.pow(10, lx);
-            const y = Math.pow(10, ly);
+            // snap to curve: pick closest precomputed dense point by x
+            const idx = nearestIndex(currentDenseX, x);
+            const cx = currentDenseX[idx];
+            const cy = currentDenseY[idx];
 
-            Plotly.restyle(gd, { x: [[x]], y: [[y]] }, [CURSOR_TRACE_INDEX]);
+            Plotly.restyle(gd, { x: [[cx]], y: [[cy]] }, [CURSOR_TRACE_INDEX]);
             Plotly.Fx.hover(gd, [{ curveNumber: CURSOR_TRACE_INDEX, pointNumber: 0 }], ['xy']);
 
             raf = null;
@@ -385,7 +406,7 @@
     // ---------- init ----------
     loadData().catch(err=>{
       console.error(err);
-      showError('Error loading data. Make sure parts_catalog.json and tcc_restructured.json are served alongside this file.');
+      showError('Error loading data. Make sure parts_catalog_fixed.json and tcc_restructured.json are served alongside this file.');
     });
   </script>
 </body>
