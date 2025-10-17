@@ -2,360 +2,320 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Fuse Selector - Time-Current Curves</title>
+  <title>Fuse Selector - Time-Current Curves (Revised)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f5f5f5;
+    :root{
+      --bg:#f6f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--brand:#2563eb;--ring:#93c5fd
     }
-    h2 {
-      text-align: center;
-      color: #333;
-    }
-    .controls {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      max-width: 800px;
-      margin: 0 auto 20px;
-    }
-    .input-group {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-    }
-    .input-field {
-      flex: 1;
-      min-width: 200px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #555;
-    }
-    input, select {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-    .fuse-list {
-      margin-top: 15px;
-    }
-    #fuseSelect {
-      margin-top: 10px;
-    }
-    .info-text {
-      color: #666;
-      font-size: 14px;
-      margin-top: 10px;
-    }
-    .chart-wrapper {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    #chart {
-      width: 100%;
-      height: 600px;
-    }
-    .error {
-      color: #d32f2f;
-      margin-top: 10px;
-    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:var(--bg);color:var(--text);}
+    header{padding:28px 20px 10px;text-align:center}
+    header h1{margin:0 0 6px;font-size:24px}
+    header p{margin:0;color:var(--muted)}
+
+    .wrap{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px}
+    .card{background:var(--card);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:18px}
+
+    .controls{display:grid;gap:12px}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .field{flex:1 1 200px}
+    label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px}
+    input,select{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none}
+    input:focus,select:focus{box-shadow:0 0 0 3px var(--ring);border-color:#bfdbfe}
+
+    button{background:var(--brand);color:#fff;border:0;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+    button[disabled]{opacity:.6;cursor:not-allowed}
+    .ghost{background:#eef2ff;color:#3730a3}
+
+    .hint{color:var(--muted);font-size:13px;margin:6px 2px 0}
+    .error{color:#b91c1c;margin-top:6px}
+
+    #fuseSelect{height:200px}
+    #chart{height:640px}
+    .badge{display:inline-flex;gap:6px;align-items:center;background:#f1f5f9;border-radius:999px;padding:4px 10px;font-size:12px;color:#0f172a}
+    .stack{display:flex;flex-wrap:wrap;gap:8px}
   </style>
 </head>
 <body>
-  <h2>Fuse Selector - Time-Current Curves</h2>
+  <header>
+    <h1>Fuse Selector – Time‑Current Curves</h1>
+    <p>Type voltage/current, pick a part, see its T‑I curve.</p>
+  </header>
 
-  <div class="controls">
-    <div class="input-group">
-      <div class="input-field">
-        <label for="currentInput">Current Rating (A):</label>
-        <input type="number" id="currentInput" placeholder="Enter current rating" min="0" step="1" />
-      </div>
-      <div class="input-field">
-        <label for="voltageInput">Voltage Rating (V):</label>
-        <input type="number" id="voltageInput" placeholder="Enter voltage rating" min="0" step="1" />
-      </div>
-    </div>
-    
-    <button id="searchBtn">Search Fuses</button>
-    
-    <div class="fuse-list" id="fuseListContainer" style="display: none;">
-      <label for="fuseSelect">Select Fuse Part Number:</label>
-      <select id="fuseSelect" size="8"></select>
-      <p class="info-text" id="infoText"></p>
-    </div>
-    
-    <p class="error" id="errorMsg"></p>
-  </div>
+  <main class="wrap">
+    <section class="card">
+      <div class="controls">
+        <div class="row">
+          <div class="field">
+            <label for="currentInput">Current rating (A)</label>
+            <input type="number" id="currentInput" placeholder="e.g., 100" min="0" step="1" />
+          </div>
+          <div class="field">
+            <label for="voltageInput">Minimum voltage rating (V)</label>
+            <input type="number" id="voltageInput" placeholder="e.g., 690" min="0" step="1" />
+          </div>
+          <div class="field" style="align-self:flex-end;display:flex;gap:8px">
+            <button id="searchBtn">Search</button>
+            <button id="clearBtn" class="ghost" type="button">Clear</button>
+          </div>
+        </div>
 
-  <div class="chart-wrapper">
-    <div id="chart"></div>
-  </div>
+        <div class="row" id="chipsRow" style="display:none">
+          <div class="stack" id="chips"></div>
+        </div>
+
+        <div id="fuseListContainer" style="display:none">
+          <label for="fuseSelect">Matching fuses</label>
+          <select id="fuseSelect" size="8"></select>
+          <div class="hint" id="infoText"></div>
+        </div>
+        <div class="error" id="errorMsg"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="stack">
+          <span class="badge"><strong>Part:</strong> <span id="badgePart">—</span></span>
+          <span class="badge"><strong>Family:</strong> <span id="badgeFamily">—</span></span>
+          <span class="badge"><strong>Rating:</strong> <span id="badgeRating">—</span></span>
+          <span class="badge"><strong>Voltage:</strong> <span id="badgeVoltage">—</span></span>
+        </div>
+        <div class="stack">
+          <label for="smoothPoints">Interpolation samples</label>
+          <input id="smoothPoints" type="range" min="100" max="1000" step="50" value="500" />
+        </div>
+      </div>
+      <div id="chart"></div>
+    </section>
+  </main>
 
   <script>
-    const PLOT_CONFIG = {
-      responsive: true,
-      displayModeBar: true,
-      scrollZoom: false,
-      doubleClick: false,
-    };
+    // ---------- constants & state ----------
+    const PLOT_CONFIG = {responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false};
+    const partsUrl = 'parts_catalog.json';
+    const tccUrl = 'tcc_restructured.json';
 
-    let denseTraceIndex = 1;
-    let cursorTraceIndex = 2;
     let partsData = [];
+    let partsIdxByKey = new Map();
     let tccData = {};
-    let currentSelection = null;
 
-    async function loadData() {
-      try {
-        const [partsResponse, tccResponse] = await Promise.all([
-          fetch("parts_catalog.json"),
-          fetch("tcc_restructured.json")
-        ]);
-        
-        partsData = await partsResponse.json();
-        tccData = await tccResponse.json();
-        
-        console.log("Data loaded successfully");
-      } catch (error) {
-        document.getElementById("errorMsg").textContent = "Error loading data files. Please ensure parts_catalog.json and tcc_restructured.json are available.";
-        console.error("Error loading data:", error);
-      }
-    }
+    let selectedFuse = null;
 
-    function searchFuses() {
-      const currentInput = parseFloat(document.getElementById("currentInput").value);
-      const voltageInput = parseFloat(document.getElementById("voltageInput").value);
-      const errorMsg = document.getElementById("errorMsg");
-      const fuseListContainer = document.getElementById("fuseListContainer");
-      const fuseSelect = document.getElementById("fuseSelect");
-      
-      errorMsg.textContent = "";
-      fuseSelect.innerHTML = "";
-      
-      if (isNaN(currentInput) || isNaN(voltageInput)) {
-        errorMsg.textContent = "Please enter valid current and voltage ratings.";
-        fuseListContainer.style.display = "none";
-        return;
+    // ---------- data loading ----------
+    async function loadData(){
+      const [partsResponse, tccResponse] = await Promise.all([
+        fetch(partsUrl),
+        fetch(tccUrl)
+      ]);
+
+      if(!partsResponse.ok || !tccResponse.ok){
+        throw new Error('Failed to load JSON');
       }
-      
-      const matchingFuses = partsData.filter(part => 
-        part.I === currentInput && part.V >= voltageInput
-      );
-      
-      if (matchingFuses.length === 0) {
-        errorMsg.textContent = `No fuses found with ${currentInput}A current rating and voltage rating >= ${voltageInput}V.`;
-        fuseListContainer.style.display = "none";
-        return;
-      }
-      
-      matchingFuses.forEach(fuse => {
-        const option = document.createElement("option");
-        option.value = JSON.stringify(fuse);
-        option.textContent = `${fuse.part} (${fuse.family}, ${fuse.I}A, ${fuse.V}V)`;
-        fuseSelect.appendChild(option);
+
+      partsData = await partsResponse.json();
+      tccData = await tccResponse.json();
+
+      // index parts by (family|I|V|part)
+      partsData.forEach((p, i)=>{
+        p.I = Number(p.I); // ensure numeric
+        p.V = Number(p.V);
+        partsIdxByKey.set(p.part, i);
       });
-      
-      fuseListContainer.style.display = "block";
-      document.getElementById("infoText").textContent = `Found ${matchingFuses.length} matching fuse(s).`;
     }
 
-    function onFuseSelected() {
-      const fuseSelect = document.getElementById("fuseSelect");
-      const errorMsg = document.getElementById("errorMsg");
-      
-      if (!fuseSelect.value) return;
-      
-      try {
-        const selectedFuse = JSON.parse(fuseSelect.value);
-        currentSelection = selectedFuse;
-        
-        const family = selectedFuse.family;
-        const rating = `${selectedFuse.I}A`;
-        
-        if (!tccData[family]) {
-          errorMsg.textContent = `No TCC data found for family: ${family}`;
-          return;
-        }
-        
-        if (!tccData[family][rating]) {
-          errorMsg.textContent = `No TCC data found for ${rating} in family ${family}`;
-          return;
-        }
-        
-        errorMsg.textContent = "";
-        plotFuse(selectedFuse, tccData[family][rating]);
-      } catch (error) {
-        errorMsg.textContent = "Error displaying fuse data.";
-        console.error("Error:", error);
+    // ---------- UI helpers ----------
+    function setBadges(fuse){
+      document.getElementById('badgePart').textContent = fuse ? fuse.part : '—';
+      document.getElementById('badgeFamily').textContent = fuse ? fuse.family : '—';
+      document.getElementById('badgeRating').textContent = fuse ? `${fuse.I}A` : '—';
+      document.getElementById('badgeVoltage').textContent = fuse ? `${fuse.V}V` : '—';
+    }
+
+    function showError(msg){
+      document.getElementById('errorMsg').textContent = msg || '';
+    }
+
+    function normalizeRatingKey(I){
+      // keys in TCC can be "100A" or "100A*" (starred curve)
+      const base = `${I}A`;
+      return [base, `${base}*`, `${I} A`];
+    }
+
+    function formatOption(p){
+      return `${p.part}  —  ${p.family}  •  ${p.I}A  •  ${p.V}V`;
+    }
+
+    function renderChips(uniqueFamilies){
+      const row = document.getElementById('chipsRow');
+      const wrap = document.getElementById('chips');
+      wrap.innerHTML = '';
+      uniqueFamilies.forEach(f=>{
+        const span = document.createElement('span');
+        span.className = 'badge';
+        span.textContent = f;
+        wrap.appendChild(span);
+      });
+      row.style.display = uniqueFamilies.size ? 'flex' : 'none';
+    }
+
+    // ---------- search ----------
+    function searchFuses(){
+      const I = Number(document.getElementById('currentInput').value);
+      const Vmin = Number(document.getElementById('voltageInput').value);
+      const fuseSelect = document.getElementById('fuseSelect');
+      const listContainer = document.getElementById('fuseListContainer');
+
+      showError('');
+      fuseSelect.innerHTML = '';
+
+      if(!Number.isFinite(I) || !Number.isFinite(Vmin)){
+        showError('Please enter valid numeric current and voltage.');
+        listContainer.style.display = 'none';
+        return;
+      }
+
+      // filter: exact current match, voltage >= requested
+      const matches = partsData.filter(p => p.I === I && p.V >= Vmin);
+
+      if(matches.length === 0){
+        showError(`No fuses found with ${I}A and voltage ≥ ${Vmin}V.`);
+        listContainer.style.display = 'none';
+        renderChips(new Set());
+        return;
+      }
+
+      // sort by family, then voltage desc, then part asc for stability
+      matches.sort((a,b)=> a.family.localeCompare(b.family) || b.V - a.V || a.part.localeCompare(b.part));
+
+      // render options
+      const frag = document.createDocumentFragment();
+      for(const p of matches){
+        const opt = document.createElement('option');
+        opt.value = p.part; // store primary key, not JSON string
+        opt.textContent = formatOption(p);
+        frag.appendChild(opt);
+      }
+      fuseSelect.appendChild(frag);
+      listContainer.style.display = 'block';
+
+      document.getElementById('infoText').textContent = `Found ${matches.length} matching fuse${matches.length>1?'s':''}. Select one to plot.`;
+
+      // show quick chips of which families are included
+      renderChips(new Set(matches.map(m=>m.family)));
+
+      // auto select first
+      if(matches.length){
+        fuseSelect.selectedIndex = 0;
+        onFuseSelected();
       }
     }
 
-    function prepSeries(xs, ys) {
-      const pairs = xs.map((x, i) => [Number(x), Number(ys[i])])
-                      .filter(p => isFinite(p[0]) && p[0] > 0 && isFinite(p[1]) && p[1] > 0)
-                      .sort((a,b) => a[0]-b[0]);
-      const X = pairs.map(p => p[0]);
-      const Y = pairs.map(p => p[1]);
-      return { X, Y };
-    }
+    // ---------- selection + plotting ----------
+    function onFuseSelected(){
+      const fuseSelect = document.getElementById('fuseSelect');
+      const idx = partsIdxByKey.get(fuseSelect.value);
+      if(idx === undefined){ return; }
+      const fuse = partsData[idx];
+      selectedFuse = fuse;
+      setBadges(fuse);
 
-    function interpolateLogLog(X, Y, samples = 400) {
-      const lx = X.map(v => Math.log10(v));
-      const ly = Y.map(v => Math.log10(v));
-      const lxMin = lx[0], lxMax = lx[lx.length - 1];
-      const denseX = [], denseY = [];
+      const fam = fuse.family;
+      const ratingCandidates = normalizeRatingKey(fuse.I);
 
-      for (let k = 0; k < samples; k++) {
-        const lxq = lxMin + (lxMax - lxMin) * (k / (samples - 1));
-        let lo = 0, hi = lx.length - 1, j = lx.length - 1;
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          if (lx[mid] >= lxq) { j = mid; hi = mid - 1; }
-          else { lo = mid + 1; }
-        }
-        if (j === 0) {
-          denseX.push(Math.pow(10, lx[0]));
-          denseY.push(Math.pow(10, ly[0]));
-        } else if (j >= lx.length) {
-          denseX.push(Math.pow(10, lx[lx.length-1]));
-          denseY.push(Math.pow(10, ly[ly.length-1]));
-        } else {
-          const t = (lxq - lx[j-1]) / (lx[j] - lx[j-1]);
-          const lyq = ly[j-1] + t * (ly[j] - ly[j-1]);
-          denseX.push(Math.pow(10, lxq));
-          denseY.push(Math.pow(10, lyq));
-        }
+      if(!tccData[fam]){
+        showError(`No TCC data for family ${fam}.`);
+        Plotly.purge('chart');
+        return;
       }
-      return { denseX, denseY };
+
+      let ratingKey = ratingCandidates.find(k => tccData[fam][k]);
+      if(!ratingKey){
+        showError(`No TCC curve found for ${fuse.I}A in family ${fam}.`);
+        Plotly.purge('chart');
+        return;
+      }
+
+      showError('');
+      const curve = tccData[fam][ratingKey];
+      plotCurve(fuse, curve);
     }
 
-    function plotFuse(fuse, ratingData) {
-      const rawX = ratingData.current;
-      const rawY = ratingData.time;
+    function prepSeries(xs, ys){
+      const pairs = xs.map((x,i)=>[Number(x), Number(ys[i])])
+        .filter(p=> Number.isFinite(p[0]) && p[0] > 0 && Number.isFinite(p[1]) && p[1] > 0)
+        .sort((a,b)=> a[0]-b[0]);
+      return {X:pairs.map(p=>p[0]), Y:pairs.map(p=>p[1])};
+    }
 
-      const { X, Y } = prepSeries(rawX, rawY);
-      const { denseX, denseY } = interpolateLogLog(X, Y, 500);
+    function interpolateLogLog(X,Y,samples){
+      const lx = X.map(Math.log10), ly = Y.map(Math.log10);
+      const lxMin = lx[0], lxMax = lx[lx.length-1];
+      const dx = (lxMax-lxMin)/(samples-1);
+      const denseX=[], denseY=[];
+      for(let k=0;k<samples;k++){
+        const q = lxMin + dx*k;
+        // binary search upper bound
+        let lo=0, hi=lx.length-1, j=lx.length-1;
+        while(lo<=hi){
+          const m=(lo+hi)>>1;
+          if(lx[m]>=q){ j=m; hi=m-1; } else { lo=m+1; }
+        }
+        if(j===0){ denseX.push(10**lx[0]); denseY.push(10**ly[0]); continue; }
+        if(j>=lx.length){ denseX.push(10**lx.at(-1)); denseY.push(10**ly.at(-1)); continue; }
+        const t=(q-lx[j-1])/(lx[j]-lx[j-1]);
+        const lyq = ly[j-1] + t*(ly[j]-ly[j-1]);
+        denseX.push(10**q); denseY.push(10**lyq);
+      }
+      return {denseX, denseY};
+    }
 
-      const traceOriginal = {
-        x: X, y: Y, mode: "lines", type: "scatter",
-        line: { width: 2 },
-        hoverinfo: "skip",
-        name: `${fuse.I}A (raw)`
-      };
+    function plotCurve(fuse, ratingData){
+      const rawX = ratingData.current; // Amps
+      const rawY = ratingData.time;    // Seconds
 
-      const traceDense = {
-        x: denseX, y: denseY, mode: "lines", type: "scatter",
-        line: { width: 1, color: 'rgba(0,0,0,0)' },
-        hoverinfo: "x+y",
-        name: "dense"
-      };
+      const {X, Y} = prepSeries(rawX, rawY);
+      const samples = Number(document.getElementById('smoothPoints').value) || 500;
+      const {denseX, denseY} = interpolateLogLog(X,Y,samples);
 
-      const traceCursor = {
-        x: [denseX[0]], y: [denseY[0]],
-        mode: "markers", type: "scatter",
-        marker: { size: 10 },
-        hovertemplate: "Current: %{x}<br>Time: %{y}<extra></extra>",
-        name: "cursor"
-      };
+      const traceOriginal = { x:X, y:Y, mode:'lines+markers', type:'scatter', name:'Raw points', line:{width:2}, marker:{size:6} };
+      const traceDense    = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'Interpolated', line:{width:2, dash:'dot'}, hoverinfo:'x+y' };
 
-      const xMin = Math.min(...X), xMax = Math.max(...X);
-      const yMin = Math.min(...Y), yMax = Math.max(...Y);
+      const xMin = Math.min(...X), xMax=Math.max(...X);
+      const yMin = Math.min(...Y), yMax=Math.max(...Y);
 
       const layout = {
-        title: `Time-Current Curve: ${fuse.part} (${fuse.family}, ${fuse.I}A, ${fuse.V}V)`,
-        hovermode: "x unified",
-        dragmode: "pan",
-        uirevision: fuse.part,
-        xaxis: {
-          title: "Current (A)",
-          type: "log",
-          range: [Math.log10(xMin) - 0.05, Math.log10(xMax) + 0.05],
-          showspikes: false
-        },
-        yaxis: {
-          title: "Time (s)",
-          type: "log",
-          range: [Math.log10(yMin) - 0.05, Math.log10(yMax) + 0.05],
-          showspikes: false
-        },
-        margin: { l: 70, r: 20, t: 60, b: 60 }
+        title: `${fuse.part} — ${fuse.family} — ${fuse.I}A @ ${fuse.V}V`,
+        hovermode:'x unified', dragmode:'pan', uirevision:`${fuse.part}`,
+        xaxis:{ type:'log', title:'Current (A)', range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9' },
+        yaxis:{ type:'log', title:'Time (s)',    range:[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05], gridcolor:'#f1f5f9' },
+        margin:{l:70,r:20,t:40,b:60}
       };
 
-      Plotly.newPlot("chart", [traceOriginal, traceDense, traceCursor], layout, PLOT_CONFIG).then(gd => {
-        gd.on("plotly_hover", ev => {
-          const pt = ev.points && ev.points[0];
-          if (!pt || pt.curveNumber !== denseTraceIndex) return;
-          Plotly.restyle(gd, { x: [[pt.x]], y: [[pt.y]] }, [cursorTraceIndex]);
-          const shapes = [
-            {
-              type: 'line',
-              xref: 'x',
-              x0: pt.x,
-              x1: pt.x,
-              yref: 'paper',
-              y0: 0,
-              y1: 1,
-              line: { color: 'gray', width: 1, dash: 'dot' }
-            },
-            {
-              type: 'line',
-              xref: 'paper',
-              x0: 0,
-              x1: 1,
-              yref: 'y',
-              y0: pt.y,
-              y1: pt.y,
-              line: { color: 'gray', width: 1, dash: 'dot' }
-            }
-          ];
-          Plotly.relayout(gd, { shapes });
-        });
-      });
+      Plotly.newPlot('chart', [traceDense, traceOriginal], layout, PLOT_CONFIG);
     }
 
-    document.getElementById("searchBtn").addEventListener("click", searchFuses);
-    document.getElementById("fuseSelect").addEventListener("change", onFuseSelected);
-    
-    document.getElementById("currentInput").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") searchFuses();
+    // ---------- events ----------
+    document.getElementById('searchBtn').addEventListener('click', searchFuses);
+    document.getElementById('clearBtn').addEventListener('click',()=>{
+      document.getElementById('currentInput').value='';
+      document.getElementById('voltageInput').value='';
+      document.getElementById('fuseListContainer').style.display='none';
+      document.getElementById('chipsRow').style.display='none';
+      setBadges(null); Plotly.purge('chart'); showError('');
     });
-    
-    document.getElementById("voltageInput").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") searchFuses();
-    });
+    document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
+    document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
+    document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
+    document.getElementById('smoothPoints').addEventListener('input',()=>{ if(selectedFuse){ onFuseSelected(); }});
 
-    loadData();
+    // ---------- init ----------
+    loadData().catch(err=>{
+      console.error(err);
+      showError('Error loading data. Make sure parts_catalog.json and tcc_restructured.json are served alongside this file.');
+    });
   </script>
 </body>
 </html>
