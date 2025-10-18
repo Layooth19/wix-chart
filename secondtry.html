@@ -2,46 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Fuse Selector - Time-Current Curves</title>
+  <title>Fuse Selector – TCC • Watts Loss • Arc Voltage • Cut-off</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
     :root{
-      --bg:#f6f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--brand:#2563eb;--ring:#93c5fd
+      --bg:#f6f7fb;--card:#fff;--text:#111827;--muted:#6b7280;--brand:#2563eb;--ring:#93c5fd
     }
     *{box-sizing:border-box}
     body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:var(--bg);color:var(--text);}
-    header{padding:28px 20px 10px;text-align:center}
-    header h1{margin:0 0 6px;font-size:24px}
+    header{padding:22px 16px 8px;text-align:center}
+    header h1{margin:0 0 6px;font-size:22px}
     header p{margin:0;color:var(--muted)}
+    .wrap{max-width:1400px;margin:0 auto;padding:16px;display:grid;gap:16px}
+    .card{background:var(--card);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:14px}
 
-    .wrap{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px}
-    .card{background:var(--card);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:18px}
-
-    .controls{display:grid;gap:12px}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .controls{display:grid;gap:10px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
     .field{flex:1 1 200px}
     label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px}
     input,select{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none}
     input:focus,select:focus{box-shadow:0 0 0 3px var(--ring);border-color:#bfdbfe}
-
     button{background:var(--brand);color:#fff;border:0;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
-    button[disabled]{opacity:.6;cursor:not-allowed}
     .ghost{background:#eef2ff;color:#3730a3}
+    .hint{color:var(--muted);font-size:12px;margin:4px 2px 0}
+    .error{color:#b91c1c;margin-top:6px;font-size:13px}
 
-    .hint{color:var(--muted);font-size:13px;margin:6px 2px 0}
-    .error{color:#b91c1c;margin-top:6px}
+    #fuseSelect{height:180px}
 
-    #fuseSelect{height:200px}
-    #chart{height:640px; position: relative;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .panel{background:var(--card);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:12px;display:flex;flex-direction:column}
+    .panel h3{margin:2px 6px 8px;font-size:16px;color:#111827}
+    .chart{height:420px;position:relative}
+
+    .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
     .badge{display:inline-flex;gap:6px;align-items:center;background:#f1f5f9;border-radius:999px;padding:4px 10px;font-size:12px;color:#0f172a}
-    .stack{display:flex;flex-wrap:wrap;gap:8px}
+    .ctrlrow{display:flex;justify-content:space-between;align-items:center;margin:2px 8px 8px}
+    .small{font-size:12px;color:#6b7280}
   </style>
 </head>
 <body>
   <header>
-    <h1>Fuse Selector – Time-Current Curves</h1>
-    <p>Type voltage/current, pick a part, see its T-I curve.</p>
+    <h1>Fuse Selector – Multiple Curves</h1>
+    <p>Enter ratings → pick a part → see all four curves updated together.</p>
   </header>
 
   <main class="wrap">
@@ -62,90 +65,82 @@
           </div>
         </div>
 
-        <div class="row" id="chipsRow" style="display:none">
-          <div class="stack" id="chips"></div>
-        </div>
-
         <div id="fuseListContainer" style="display:none">
           <label for="fuseSelect">Matching fuses</label>
           <select id="fuseSelect" size="8"></select>
           <div class="hint" id="infoText"></div>
         </div>
-        <div class="error" id="errorMsg"></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div class="stack">
+        <div class="badges">
           <span class="badge"><strong>Part:</strong> <span id="badgePart">—</span></span>
           <span class="badge"><strong>Family:</strong> <span id="badgeFamily">—</span></span>
           <span class="badge"><strong>Rating:</strong> <span id="badgeRating">—</span></span>
           <span class="badge"><strong>Voltage:</strong> <span id="badgeVoltage">—</span></span>
+          <span class="badge"><strong>Smoothing:</strong> <input id="smoothPoints" type="range" min="100" max="1000" step="50" value="500" /></span>
         </div>
-        <div class="stack">
-          <label for="smoothPoints">Interpolation samples</label>
-          <input id="smoothPoints" type="range" min="100" max="1000" step="50" value="500" />
-        </div>
+        <div class="error" id="errorMsg"></div>
       </div>
-      <div id="chart"></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="ctrlrow"><h3>Time–Current Curve (TCC)</h3><span class="small">x: Current (A) • y: Time (s)</span></div>
+        <div id="chart-tcc" class="chart"></div>
+      </div>
+      <div class="panel">
+        <div class="ctrlrow"><h3>Watts Loss</h3><span class="small">x: Ib • y: Kp</span></div>
+        <div id="chart-watts" class="chart"></div>
+      </div>
+      <div class="panel">
+        <div class="ctrlrow"><h3>Arc Voltage</h3><span class="small">x/y as per sheet</span></div>
+        <div id="chart-arc" class="chart"></div>
+      </div>
+      <div class="panel">
+        <div class="ctrlrow"><h3>Cut-off Curve</h3><span class="small">x: Prospective current • y: Peak let-through</span></div>
+        <div id="chart-cutoff" class="chart"></div>
+      </div>
     </section>
   </main>
 
   <script>
-    // ---------- constants & state ----------
+    // ----------- constants, URLs ----------
     const PLOT_CONFIG = {responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false};
-    const partsUrl = 'parts_catalog_fixed.json';     // using the fixed catalog
-    const tccUrl   = 'tcc_restructured.json';
 
-    const DENSE_TRACE_INDEX  = 0;
-    const RAW_TRACE_INDEX    = 1;
+    const partsUrl  = 'parts_catalog_fixed.json';
+    const tccUrl    = 'tcc_restructured.json';
+    const wattsUrl  = 'watts_loss_restructured.json';
+    const arcUrl    = 'arc_voltage_restructured.json';
+    const cutUrl    = 'cutoff_restructured.json';
+
     const CURSOR_TRACE_INDEX = 2;
 
+    // ----------- data state ----------
     let partsData = [];
     let partsIdxByKey = new Map();
-    let tccData = {};
+    let tccData = {}, wattsData = {}, arcData = {}, cutData = {};
+
     let selectedFuse = null;
 
-    // current interpolated curve for snapping
-    let currentDenseX = [];
-    let currentDenseY = [];
+    // per-chart dense cache for snapping
+    const denseCache = {
+      tcc:   { X: [], Y: [] },
+      watts: { X: [], Y: [] },
+      arc:   { X: [], Y: [] },
+      cut:   { X: [], Y: [] }
+    };
 
-    // ---------- robust JSON loader ----------
+    // ----------- helpers ----------
     async function loadJSON(url) {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status} while loading ${url}`);
       const txt = await res.text();
-      try {
-        return JSON.parse(txt);
-      } catch {
-        const fixed = txt.replace(/}\\s*\\n\\s*{/g, '},\\n{');
+      try { return JSON.parse(txt); }
+      catch {
+        // light fix for object adjacency
+        const fixed = txt.replace(/}\s*\n\s*{/g,'},\n{');
         return JSON.parse(fixed);
       }
     }
 
-    // ---------- data loading ----------
-    async function loadData(){
-      if (location.protocol === 'file:') {
-        showError('Note: fetching JSON usually fails over file:// — please serve this folder over http:// (e.g. python -m http.server).');
-      }
-      const [partsResponse, tccResponse] = await Promise.all([
-        loadJSON(partsUrl),
-        loadJSON(tccUrl)
-      ]);
-
-      partsData = partsResponse;
-      tccData   = tccResponse;
-
-      partsIdxByKey = new Map();
-      partsData.forEach((p, i)=>{
-        p.I = Number(p.I);
-        p.V = Number(p.V);
-        partsIdxByKey.set(p.part, i);
-      });
-    }
-
-    // ---------- UI helpers ----------
     function setBadges(fuse){
       document.getElementById('badgePart').textContent   = fuse ? fuse.part : '—';
       document.getElementById('badgeFamily').textContent = fuse ? fuse.family : '—';
@@ -155,95 +150,6 @@
     function showError(msg){ document.getElementById('errorMsg').textContent = msg || ''; }
     function normalizeRatingKey(I){ const base = `${I}A`; return [base, `${base}*`, `${I} A`]; }
     function formatOption(p){ return `${p.part}  —  ${p.family}  •  ${p.I}A  •  ${p.V}V`; }
-    function renderChips(uniqueFamilies){
-      const row = document.getElementById('chipsRow');
-      const wrap = document.getElementById('chips');
-      wrap.innerHTML = '';
-      uniqueFamilies.forEach(f=>{
-        const span = document.createElement('span');
-        span.className = 'badge';
-        span.textContent = f;
-        wrap.appendChild(span);
-      });
-      row.style.display = uniqueFamilies.size ? 'flex' : 'none';
-    }
-
-    // ---------- search ----------
-    function searchFuses(){
-      const I    = Number(document.getElementById('currentInput').value);
-      const Vreq = Number(document.getElementById('voltageInput').value);
-      const fuseSelect    = document.getElementById('fuseSelect');
-      const listContainer = document.getElementById('fuseListContainer');
-
-      showError('');
-      fuseSelect.innerHTML = '';
-
-      if(!Number.isFinite(I) || !Number.isFinite(Vreq)){
-        showError('Please enter valid numeric current and voltage.');
-        listContainer.style.display = 'none';
-        return;
-      }
-
-      // exact voltage match
-      const matches = partsData.filter(p => p.I === I && p.V === Vreq);
-
-      if(matches.length === 0){
-        showError(`No fuses found with ${I}A and exactly ${Vreq}V.`);
-        listContainer.style.display = 'none';
-        renderChips(new Set());
-        return;
-      }
-
-      matches.sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
-
-      const frag = document.createDocumentFragment();
-      for(const p of matches){
-        const opt = document.createElement('option');
-        opt.value = p.part;
-        opt.textContent = formatOption(p);
-        frag.appendChild(opt);
-      }
-      fuseSelect.appendChild(frag);
-      listContainer.style.display = 'block';
-
-      document.getElementById('infoText').textContent = `Found ${matches.length} matching fuse${matches.length>1?'s':''}. Select one to plot.`;
-      renderChips(new Set(matches.map(m=>m.family)));
-
-      if(matches.length){
-        fuseSelect.selectedIndex = 0;
-        onFuseSelected();
-      }
-    }
-
-    // ---------- selection + plotting ----------
-    function onFuseSelected(){
-      const fuseSelect = document.getElementById('fuseSelect');
-      const idx = partsIdxByKey.get(fuseSelect.value);
-      if(idx === undefined){ return; }
-      const fuse = partsData[idx];
-      selectedFuse = fuse;
-      setBadges(fuse);
-
-      const fam = fuse.family;
-      const ratingCandidates = normalizeRatingKey(fuse.I);
-
-      if(!tccData[fam]){
-        showError(`No TCC data for family ${fam}.`);
-        Plotly.purge('chart');
-        return;
-      }
-
-      let ratingKey = ratingCandidates.find(k => tccData[fam][k]);
-      if(!ratingKey){
-        showError(`No TCC curve found for ${fuse.I}A in family ${fam}.`);
-        Plotly.purge('chart');
-        return;
-      }
-
-      showError('');
-      const curve = tccData[fam][ratingKey];
-      plotCurve(fuse, curve);
-    }
 
     function prepSeries(xs, ys){
       const pairs = xs.map((x,i)=>[Number(x), Number(ys[i])])
@@ -259,12 +165,9 @@
       const denseX=[], denseY=[];
       for(let k=0;k<samples;k++){
         const q = lxMin + dx*k;
-        // binary search upper bound
+        // upper_bound
         let lo=0, hi=lx.length-1, j=lx.length-1;
-        while(lo<=hi){
-          const m=(lo+hi)>>1;
-          if(lx[m]>=q){ j=m; hi=m-1; } else { lo=m+1; }
-        }
+        while(lo<=hi){ const m=(lo+hi)>>1; if(lx[m]>=q){ j=m; hi=m-1; } else { lo=m+1; } }
         if(j===0){ denseX.push(10**lx[0]); denseY.push(10**ly[0]); continue; }
         if(j>=lx.length){ denseX.push(10**lx.at(-1)); denseY.push(10**ly.at(-1)); continue; }
         const t=(q-lx[j-1])/(lx[j]-lx[j-1]);
@@ -274,138 +177,20 @@
       return {denseX, denseY};
     }
 
-    // Find nearest index in ascending array 'arr' to x
     function nearestIndex(arr, x){
-      let lo = 0, hi = arr.length - 1;
-      if (x <= arr[0]) return 0;
-      if (x >= arr[hi]) return hi;
-      while (lo <= hi){
-        const mid = (lo + hi) >> 1;
-        if (arr[mid] === x) return mid;
-        if (arr[mid] < x) lo = mid + 1;
-        else hi = mid - 1;
+      let lo=0, hi=arr.length-1;
+      if(!arr.length) return 0;
+      if(x<=arr[0]) return 0;
+      if(x>=arr[hi]) return hi;
+      while(lo<=hi){
+        const mid=(lo+hi)>>1;
+        if(arr[mid]===x) return mid;
+        if(arr[mid]<x) lo=mid+1; else hi=mid-1;
       }
-      const i1 = Math.max(0, lo - 1);
-      const i2 = Math.min(arr.length - 1, lo);
-      return (Math.abs(arr[i1] - x) <= Math.abs(arr[i2] - x)) ? i1 : i2;
+      const i1=Math.max(0,lo-1), i2=Math.min(arr.length-1,lo);
+      return Math.abs(arr[i1]-x)<=Math.abs(arr[i2]-x)?i1:i2;
     }
 
-    function plotCurve(fuse, ratingData){
-      const rawX = ratingData.current; // Amps
-      const rawY = ratingData.time;    // Seconds
-
-      const {X, Y} = prepSeries(rawX, rawY);
-      const samples = Number(document.getElementById('smoothPoints').value) || 500;
-      const dense = interpolateLogLog(X, Y, samples);
-      currentDenseX = dense.denseX;
-      currentDenseY = dense.denseY;
-
-      const traceDense = {
-        x:currentDenseX, y:currentDenseY, mode:'lines', type:'scatter',
-        name:'Interpolated',
-        line:{width:2, dash:'dot'},
-        hoverinfo:'skip'
-      };
-
-      const traceOriginal = {
-        x:X, y:Y, mode:'lines+markers', type:'scatter',
-        name:'Raw points', line:{width:2}, marker:{size:6}
-      };
-
-      const traceCursor = {
-        x:[currentDenseX[0]], y:[currentDenseY[0]],
-        mode:'markers', type:'scatter', name:'Cursor',
-        marker:{ size:12, symbol:'circle', line:{width:2} },
-        hoverinfo:'skip'
-      };
-
-      const xMin = Math.min(...X), xMax=Math.max(...X);
-      const yMin = Math.min(...Y), yMax=Math.max(...Y);
-
-      const layout = {
-        title: `${fuse.part} — ${fuse.family} — ${fuse.I}A @ ${fuse.V}V`,
-        hovermode:'closest',
-        dragmode:'pan',
-        uirevision:`${fuse.part}`,
-        xaxis:{ type:'log', title:'Current (A)', range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9' },
-        yaxis:{ type:'log', title:'Time (s)',    range:[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05], gridcolor:'#f1f5f9' },
-        margin:{l:70,r:20,t:40,b:60}
-      };
-
-      Plotly.newPlot('chart', [traceDense, traceOriginal, traceCursor], layout, PLOT_CONFIG).then(gd=>{
-        const host = gd; // inner graph div
-        let raf = null;
-        let lastEvt = null;
-
-        // Create a persistent tooltip (always visible when inside plot)
-        const tooltip = document.createElement('div');
-        tooltip.style.position = 'fixed';          // track viewport coords
-        tooltip.style.background = 'rgba(255,255,255,0.95)';
-        tooltip.style.border = '1px solid #ccc';
-        tooltip.style.borderRadius = '6px';
-        tooltip.style.padding = '6px 10px';
-        tooltip.style.fontSize = '13px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.whiteSpace = 'nowrap';
-        tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,.08)';
-        tooltip.style.display = 'none';
-        document.body.appendChild(tooltip);
-
-        function schedule(e){
-          const rect = host.getBoundingClientRect();
-          const px = e.clientX - rect.left;
-          const py = e.clientY - rect.top;
-
-          const xax = gd._fullLayout.xaxis;
-          const yax = gd._fullLayout.yaxis;
-
-          const x0 = xax._offset, xw = xax._length;
-          const y0 = yax._offset, yh = yax._length;
-
-          // Only update if inside plotting area
-          if (px < x0 || px > x0 + xw || py < y0 || py > y0 + yh) {
-            tooltip.style.display = 'none';
-            return;
-          }
-
-          lastEvt = { clientX: e.clientX, clientY: e.clientY, px, x0, xw, xax };
-          if (raf) return;
-
-          raf = requestAnimationFrame(()=>{
-            const { clientX, clientY, px, x0, xw, xax } = lastEvt;
-
-            // map mouse x to data x (log scale)
-            const rx = (px - x0) / xw;
-            const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
-            const x  = Math.pow(10, lx);
-
-            // snap to curve by nearest dense x
-            const idx = nearestIndex(currentDenseX, x);
-            const cx = currentDenseX[idx];
-            const cy = currentDenseY[idx];
-
-            Plotly.restyle(gd, { x: [[cx]], y: [[cy]] }, [CURSOR_TRACE_INDEX]);
-
-            // Always-on tooltip next to the cursor
-            tooltip.textContent = `Current: ${fmtNumber(cx)} A  |  Time: ${fmtTime(cy)} s`;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (clientX + 14) + 'px';
-            tooltip.style.top  = (clientY - 18) + 'px';
-
-            raf = null;
-          });
-        }
-
-        function leave(){
-          tooltip.style.display = 'none';
-        }
-
-        host.addEventListener('mousemove', schedule);
-        host.addEventListener('mouseleave', leave);
-      });
-    }
-
-    // ---------- formatting helpers ----------
     function fmtNumber(v){
       if (v >= 1000) return v.toFixed(0);
       if (v >= 100)  return v.toFixed(1);
@@ -418,25 +203,266 @@
       return v.toExponential(2);
     }
 
-    // ---------- events ----------
+    // ----------- core: build one chart with shared behavior -----------
+    function buildChart(containerId, title, getCurve, cacheKey){
+      const container = document.getElementById(containerId);
+
+      function plotCurve(){
+        const result = getCurve();
+        if(!result || !result.X || !result.Y || !result.X.length){
+          Plotly.purge(containerId);
+          container.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">No data for selection.</div>';
+          denseCache[cacheKey] = {X:[],Y:[]};
+          return;
+        }
+        const {X, Y} = result;
+        const samples = Number(document.getElementById('smoothPoints').value) || 500;
+        const {denseX, denseY} = interpolateLogLog(X, Y, samples);
+        denseCache[cacheKey] = {X:denseX, Y:denseY};
+
+        const xMin = Math.min(...X), xMax = Math.max(...X);
+        const yMin = Math.min(...Y), yMax = Math.max(...Y);
+
+        const traceDense = { x:denseX, y:denseY, mode:'lines', type:'scatter',
+          name:'Interpolated', line:{width:2, dash:'dot'}, hoverinfo:'skip' };
+        const traceRaw   = { x:X, y:Y, mode:'lines+markers', type:'scatter',
+          name:'Raw', line:{width:2}, marker:{size:6} };
+        const traceCursor= { x:[denseX[0]], y:[denseY[0]], mode:'markers', type:'scatter',
+          name:'Cursor', marker:{size:12, symbol:'circle', line:{width:2}}, hoverinfo:'skip' };
+
+        const layout = {
+          title: title(),
+          hovermode:'closest',
+          dragmode:'pan',
+          uirevision:title(), // keep zoom on update
+          xaxis:{ type:'log', title:result.xlabel || 'Current (A)',
+                  range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9' },
+          yaxis:{ type:'log', title:result.ylabel || 'Time (s)',
+                  range:[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05], gridcolor:'#f1f5f9' },
+          margin:{l:60,r:10,t:34,b:48}
+        };
+
+        Plotly.newPlot(containerId, [traceDense, traceRaw, traceCursor], layout, PLOT_CONFIG)
+        .then(gd => attachAlwaysOnTooltip(gd, cacheKey));
+      }
+
+      plotCurve();
+      return { refresh: plotCurve };
+    }
+
+    // ----------- always-visible tooltip + curve-snapped cursor ----------
+    function attachAlwaysOnTooltip(gd, cacheKey){
+      const host = gd; // inner graph div
+      let raf = null;
+      let lastEvt = null;
+
+      // persistent tooltip
+      const tooltip = document.createElement('div');
+      tooltip.style.position = 'fixed';
+      tooltip.style.background = 'rgba(255,255,255,0.95)';
+      tooltip.style.border = '1px solid #ccc';
+      tooltip.style.borderRadius = '6px';
+      tooltip.style.padding = '6px 10px';
+      tooltip.style.fontSize = '13px';
+      tooltip.style.pointerEvents = 'none';
+      tooltip.style.whiteSpace = 'nowrap';
+      tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,.08)';
+      tooltip.style.display = 'none';
+      document.body.appendChild(tooltip);
+
+      function schedule(e){
+        const rect = host.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+
+        const xax = gd._fullLayout.xaxis;
+        const yax = gd._fullLayout.yaxis;
+        const x0 = xax._offset, xw = xax._length;
+        const y0 = yax._offset, yh = yax._length;
+
+        if (px < x0 || px > x0 + xw || py < y0 || py > y0 + yh) {
+          tooltip.style.display = 'none';
+          return;
+        }
+
+        lastEvt = { clientX:e.clientX, clientY:e.clientY, px, x0, xw, xax };
+        if (raf) return;
+
+        raf = requestAnimationFrame(()=>{
+          const { clientX, clientY, px, x0, xw, xax } = lastEvt;
+          const rx = (px - x0) / xw;
+          const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
+          const x  = Math.pow(10, lx);
+
+          const dense = denseCache[cacheKey] || {X:[],Y:[]};
+          if(!dense.X.length){ tooltip.style.display='none'; raf=null; return; }
+
+          const idx = nearestIndex(dense.X, x);
+          const cx = dense.X[idx];
+          const cy = dense.Y[idx];
+
+          Plotly.restyle(gd, { x: [[cx]], y: [[cy]] }, [CURSOR_TRACE_INDEX]);
+
+          tooltip.textContent = `Current: ${fmtNumber(cx)}  |  Time: ${fmtTime(cy)}`;
+          tooltip.style.display = 'block';
+          tooltip.style.left = (clientX + 14) + 'px';
+          tooltip.style.top  = (clientY - 18) + 'px';
+
+          raf = null;
+        });
+      }
+      function leave(){ tooltip.style.display = 'none'; }
+
+      host.addEventListener('mousemove', schedule);
+      host.addEventListener('mouseleave', leave);
+    }
+
+    // ----------- data loading -----------
+    async function loadData(){
+      if (location.protocol === 'file:') {
+        showError('Note: fetching JSON usually fails over file:// — please serve this folder over http:// (e.g., python -m http.server).');
+      }
+      const [parts, tcc, watts, arc, cut] = await Promise.all([
+        loadJSON(partsUrl), loadJSON(tccUrl), loadJSON(wattsUrl),
+        loadJSON(arcUrl), loadJSON(cutUrl)
+      ]);
+      partsData = parts; tccData = tcc; wattsData = watts; arcData = arc; cutData = cut;
+      partsIdxByKey = new Map();
+      partsData.forEach((p,i)=>{ p.I=Number(p.I); p.V=Number(p.V); partsIdxByKey.set(p.part, i); });
+    }
+
+    // ----------- search & selection -----------
+    function searchFuses(){
+      const I    = Number(document.getElementById('currentInput').value);
+      const Vreq = Number(document.getElementById('voltageInput').value);
+      const fuseSelect = document.getElementById('fuseSelect');
+      const listContainer = document.getElementById('fuseListContainer');
+
+      showError('');
+      fuseSelect.innerHTML = '';
+
+      if(!Number.isFinite(I) || !Number.isFinite(Vreq)){
+        showError('Please enter valid numeric current and voltage.');
+        listContainer.style.display = 'none';
+        return;
+      }
+
+      const matches = partsData.filter(p => p.I === I && p.V === Vreq);
+      if(matches.length === 0){
+        showError(`No fuses found with ${I}A and exactly ${Vreq}V.`);
+        listContainer.style.display = 'none';
+        return;
+      }
+
+      matches.sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
+      const frag = document.createDocumentFragment();
+      for(const p of matches){
+        const opt = document.createElement('option');
+        opt.value = p.part;
+        opt.textContent = formatOption(p);
+        frag.appendChild(opt);
+      }
+      fuseSelect.appendChild(frag);
+      listContainer.style.display = 'block';
+
+      document.getElementById('infoText').textContent =
+        `Found ${matches.length} matching fuse${matches.length>1?'s':''}. Select one to plot.`;
+
+      if(matches.length){ fuseSelect.selectedIndex = 0; onFuseSelected(); }
+    }
+
+    function onFuseSelected(){
+      const fuseSelect = document.getElementById('fuseSelect');
+      const idx = partsIdxByKey.get(fuseSelect.value);
+      if(idx === undefined) return;
+      selectedFuse = partsData[idx];
+      setBadges(selectedFuse);
+      refreshAll();
+    }
+
+    // ----------- per-graph curve getters -----------
+    function getTccCurve(){
+      if(!selectedFuse) return null;
+      const fam = selectedFuse.family;
+      const keys = normalizeRatingKey(selectedFuse.I);
+      const famObj = tccData[fam] || {};
+      const key = keys.find(k => famObj[k]);
+      if(!key) return null;
+      const curve = famObj[key];
+      const {X,Y} = prepSeries(curve.current, curve.time);
+      return {X,Y, xlabel:'Current (A)', ylabel:'Time (s)', title:`${selectedFuse.part} — ${fam} — ${selectedFuse.I}A @ ${selectedFuse.V}V`};
+    }
+    function getWattsCurve(){
+      if(!selectedFuse) return null;
+      const fam = selectedFuse.family;
+      const famObj = wattsData[fam] || {};
+      const curve = famObj["all"];
+      if(!curve) return null;
+      const {X,Y} = prepSeries(curve.current, curve.time); // current=Ib, time=Kp
+      return {X,Y, xlabel:'Ib', ylabel:'Kp', title:`Watts Loss — ${fam}`};
+    }
+    function getArcCurve(){
+      if(!selectedFuse) return null;
+      const fam = selectedFuse.family;
+      const famObj = arcData[fam] || {};
+      const curve = famObj["all"];
+      if(!curve) return null;
+      const {X,Y} = prepSeries(curve.current, curve.time);
+      return {X,Y, xlabel:'X', ylabel:'Y', title:`Arc Voltage — ${fam}`};
+    }
+    function getCutCurve(){
+      if(!selectedFuse) return null;
+      const fam = selectedFuse.family;
+      const famObj = cutData[fam] || {};
+      const key = `${selectedFuse.I}A`;
+      const curve = famObj[key];
+      if(!curve) return null;
+      const {X,Y} = prepSeries(curve.current, curve.time); // prospective vs let-through
+      return {X,Y, xlabel:'Prospective current', ylabel:'Peak let-through', title:`Cut-off — ${fam} — ${key}`};
+    }
+
+    // ----------- build all charts -----------
+    let chartTcc, chartWatts, chartArc, chartCut;
+
+    function buildAll(){
+      chartTcc   = buildChart('chart-tcc',   ()=> selectedFuse ? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getTccCurve,   'tcc');
+      chartWatts = buildChart('chart-watts', ()=> selectedFuse ? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getWattsCurve, 'watts');
+      chartArc   = buildChart('chart-arc',   ()=> selectedFuse ? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getArcCurve,   'arc');
+      chartCut   = buildChart('chart-cutoff',()=> selectedFuse ? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCutCurve, 'cut');
+    }
+
+    function refreshAll(){
+      chartTcc?.refresh();
+      chartWatts?.refresh();
+      chartArc?.refresh();
+      chartCut?.refresh();
+    }
+
+    // ----------- events -----------
     document.getElementById('searchBtn').addEventListener('click', searchFuses);
     document.getElementById('clearBtn').addEventListener('click',()=>{
       document.getElementById('currentInput').value='';
       document.getElementById('voltageInput').value='';
       document.getElementById('fuseListContainer').style.display='none';
-      document.getElementById('chipsRow').style.display='none';
-      setBadges(null); Plotly.purge('chart'); showError('');
+      selectedFuse = null; setBadges(null); showError('');
+      // Clear charts
+      ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id => { Plotly.purge(id); document.getElementById(id).innerHTML=''; });
     });
     document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
     document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
     document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
-    document.getElementById('smoothPoints').addEventListener('input',()=>{ if(selectedFuse){ onFuseSelected(); }});
+    document.getElementById('smoothPoints').addEventListener('input',()=>{ if(selectedFuse){ refreshAll(); }});
 
-    // ---------- init ----------
-    loadData().catch(err=>{
-      console.error(err);
-      showError('Error loading data. Make sure parts_catalog_fixed.json and tcc_restructured.json are served alongside this file.');
-    });
+    // ----------- init -----------
+    (async () => {
+      try {
+        await loadData();
+        buildAll();
+      } catch (err) {
+        console.error(err);
+        showError('Error loading data. Ensure all JSON files are present and served over HTTP.');
+      }
+    })();
   </script>
 </body>
 </html>
