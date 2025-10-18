@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Fuse Selector – Curves + Derating (with Ke % + Recommendations)</title>
+  <title>Fuse Selector – Curves + Derating (Recommendations + Apply)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
@@ -34,7 +34,7 @@
     .hint{ color:var(--muted); font-size:12px; margin:4px 2px 0 }
     .error{ color:#b91c1c; margin-top:6px; font-size:13px }
 
-    #fuseSelect, #fuseSelectDerate, #recSelect{ height:180px }
+    #fuseSelect, #recSelect{ height:180px }
 
     .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
     .panel{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:12px; display:flex; flex-direction:column }
@@ -52,6 +52,8 @@
     .kv{ display:flex; justify-content:space-between; gap:12px; font-size:14px; border-bottom:1px dashed #e5e7eb; padding:6px 0 }
     .kv strong{ color:#111827 }
     .big{ font-size:18px; font-weight:700 }
+
+    .actions-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
   </style>
 </head>
 <body>
@@ -161,17 +163,13 @@
               <label for="altInput">Operating altitude (m)</label>
               <input type="number" id="altInput" placeholder="e.g., 1000" step="1" />
             </div>
-            <div class="field" style="align-self:flex-end;display:flex;gap:8px">
-              <button id="searchBtnDerate">Search</button>
-              <button id="clearBtnDerate" class="ghost" type="button">Clear</button>
+            <div class="field actions-row" style="align-self:flex-end">
+              <button id="updateRecsBtn">Update recommendations</button>
+              <button id="applyToCurvesBtn" class="ghost" type="button" disabled>Apply to Curves</button>
             </div>
           </div>
 
-          <div id="fuseListDerate" style="display:none">
-            <label for="fuseSelectDerate">Matching fuses (by input current & exact V)</label>
-            <select id="fuseSelectDerate" size="8"></select>
-            <div class="hint" id="infoTextDerate"></div>
-          </div>
+          <!-- Removed the "fuses matching input current & voltage" list here -->
           <div class="error" id="errorMsgDerate"></div>
         </div>
       </section>
@@ -207,7 +205,7 @@
         <div class="kv big"><span>I<sub>derated</sub> (A)</span><strong id="val-Iderated">—</strong></div>
       </section>
 
-      <!-- NEW: Recommendations list (based on derated current & exact voltage) -->
+      <!-- Recommendations (by derated current & exact voltage) -->
       <section class="card" id="recCard" style="display:none">
         <div class="controls">
           <label for="recSelect">Recommended fuses (exact V, next rating ≥ I<sub>derated</sub>)</label>
@@ -237,7 +235,7 @@
     // ---------------- shared data ----------------
     let partsData=[], partsIdxByKey=new Map();
     let tccData={}, wattsData={}, arcData={}, cutData={};
-    let selectedFuse=null;
+    let selectedFuse=null; // global selection for Curves tab
 
     // Derating tables
     let tempTable={}, areaTable={}, freqTable={}, airTable={};
@@ -387,7 +385,7 @@
     }
     function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); }
 
-    // CURVES: search & selection
+    // CURVES: search & selection (unchanged)
     function searchFuses(){
       const I=Number(document.getElementById('currentInput').value);
       const V=Number(document.getElementById('voltageInput').value);
@@ -411,26 +409,12 @@
       refreshCurvesCharts();
     }
 
-    // ---------- DERATING TAB ----------
+    // ---------- DERATING ----------
     // G options 1.0 → 2.0 step 0.1
     const gSel = document.getElementById('gFactor');
     (function fillG(){ for(let g=1.0; g<=2.0001; g+=0.1){ const opt=document.createElement('option'); opt.value=g.toFixed(1); opt.textContent=g.toFixed(1); gSel.appendChild(opt);} })();
 
-    function searchFusesDerate(){
-      const I=Number(document.getElementById('currentInputDerate').value);
-      const V=Number(document.getElementById('voltageInputDerate').value);
-      const sel=document.getElementById('fuseSelectDerate'); const cont=document.getElementById('fuseListDerate'); const err=document.getElementById('errorMsgDerate');
-      err.textContent=''; sel.innerHTML='';
-      if(!Number.isFinite(I)||!Number.isFinite(V)){ err.textContent='Please enter valid numeric current and voltage.'; cont.style.display='none'; return; }
-      const matches=partsData.filter(p=>p.I===I && p.V===V).sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
-      if(!matches.length){ err.textContent=`No fuses found with ${I}A and exactly ${V}V.`; cont.style.display='none'; return; }
-      const frag=document.createDocumentFragment(); for(const p of matches){ const o=document.createElement('option'); o.value=p.part; o.textContent=formatOption(p); frag.appendChild(o); }
-      sel.appendChild(frag); cont.style.display='block';
-      document.getElementById('infoTextDerate').textContent = `Found ${matches.length} matching fuse${matches.length>1?'s':''}. Select one to compute derating.`;
-      sel.selectedIndex=0; onFuseSelectedDerate();
-    }
-
-    function pickPairs(table, family){ if(!table) return null; if(table[family]) return table[family]; const keys=Object.keys(table); return keys.length? table[keys[0]] : null; }
+    function pickPairs(table, family){ if(!table) return null; if(family && table[family]) return table[family]; const keys=Object.keys(table); return keys.length? table[keys[0]] : null; }
 
     // Small factor chart (linear axes) with optional fixed X range
     function buildFactorChart(containerId, title, axisLabels, fixedXRange=null){
@@ -447,7 +431,7 @@
           else if(j>=X.length){dX.push(X.at(-1)); dY.push(Y.at(-1));}
           else {const t=(xq-X[j-1])/(X[j]-X[j-1]); dX.push(xq); dY.push(Y[j-1]+t*(Y[j]-Y[j-1]));}
         }
-        // position cursor at current x
+        // cursor position (nearest)
         const idx=(()=>{
           if(xCurrent==null) return 0;
           let lo=0, hi=dX.length-1; if(xCurrent<=dX[0]) return 0; if(xCurrent>=dX[hi]) return hi;
@@ -470,16 +454,16 @@
     }
 
     const chart_kT = buildFactorChart('chart-kT', 'Temperature Factor (kT)', {x:'Ambient temp (°C)', y:'kT'});
-    // Ke (%): fix x-range to [50, 100] per rule
+    // Ke (%): fix x-range to [50, 100]
     const chart_kA = buildFactorChart('chart-kA', 'Conductor Percentage Factor (Ke)', {x:'Calculated percentage (%)', y:'Ke'}, [50, 100]);
     const chart_kV = buildFactorChart('chart-kV', 'Air Speed Factor (kV)', {x:'Air speed (m/s)', y:'kV'});
     const chart_kF = buildFactorChart('chart-kF', 'Frequency Factor (kF)', {x:'Frequency (Hz)', y:'kF'});
 
-    // Ke percentage from current density
+    // Ke percentage from current density (your corrected formula)
     function computeKePercentage(Ib, areaMm2){
       if (!Number.isFinite(Ib) || !Number.isFinite(areaMm2) || areaMm2 <= 0) return NaN;
       const J = Ib / areaMm2;                   // A/mm²
-      const pctRaw = (1 - (J - 1.3) / J) * 100; // (1 - (J - 1.3)/J) * 100  == (1.3/J)*100
+      const pctRaw = (1 - (J - 1.3) / J) * 100; // == (1.3/J)*100
       if (!Number.isFinite(pctRaw)) return NaN;
       return Math.max(50, Math.min(100, pctRaw)); // clamp to [50, 100]
     }
@@ -489,48 +473,38 @@
       return 1.0;
     }
 
-    function onFuseSelectedDerate(){
-      const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value); if(idx===undefined) return;
-      const fuse=partsData[idx];
-      computeAndRenderDerating(fuse);
-    }
-
-    // ----- NEW: recommendations builder (by I_derated & exact V) -----
+    // ----- Recommendations (by I_derated & exact V) -----
     function updateRecommendations(voltageExact, Iderated){
       const recCard = document.getElementById('recCard');
       const recSel  = document.getElementById('recSelect');
       const recInfo = document.getElementById('recInfo');
-      recSel.innerHTML=''; recInfo.textContent='';
+      const applyBtn= document.getElementById('applyToCurvesBtn');
+      recSel.innerHTML=''; recInfo.textContent=''; applyBtn.disabled = true;
 
       if(!Number.isFinite(voltageExact) || !Number.isFinite(Iderated)){
         recCard.style.display='none';
         return;
       }
 
-      // all parts at exact voltage
       const atV = partsData.filter(p => p.V === voltageExact);
       if(!atV.length){
         recCard.style.display='none';
         return;
       }
 
-      // unique available current ratings at this V (ascending)
       const ratings = Array.from(new Set(atV.map(p => p.I))).sort((a,b)=>a-b);
+      const target = ratings.find(r => r >= Iderated);
 
-      // find next rating >= Iderated
-      let target = ratings.find(r => r >= Iderated);
-      if (target === undefined) {
-        // none >= Iderated; nothing to recommend (per your rule we do not go higher than the next rating when it exists)
-        recInfo.textContent = `No fuse rating ≥ ${fmt(Iderated,3)} A found at ${voltageExact} V.`;
+      if (target === undefined){
+        recInfo.textContent = `No fuse rating ≥ ${fmt(Iderated,3)} A at ${voltageExact} V.`;
         recCard.style.display='block';
         return;
       }
 
-      // list only fuses at that exact next rating (and exact voltage)
       const recs = atV.filter(p => p.I === target)
                       .sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
 
-      if (!recs.length){
+      if(!recs.length){
         recInfo.textContent = `No parts at ${target} A found at ${voltageExact} V.`;
         recCard.style.display='block';
         return;
@@ -545,17 +519,16 @@
       }
       recSel.appendChild(frag);
       recCard.style.display='block';
-
-      const exact = ratings.includes(Math.round(Iderated)) && Math.round(Iderated) === target;
       recInfo.textContent = `Recommended rating: ${target} A (Iₙext ≥ I_derated = ${fmt(Iderated,3)} A) at ${voltageExact} V.`;
-
-      // optional: pick first by default to allow quick Plot updates if desired
       recSel.selectedIndex = 0;
+      applyBtn.disabled = false;
     }
 
-    function computeAndRenderDerating(fuse){
-      const fam = fuse.family;
-      const Ib  = Number(fuse.I);
+    // Compute + render derating (no fuse required)
+    function computeAndRenderDerating(optionalFuse){
+      // If a fuse is provided (e.g., selected in recommendations), use its family; else use generic (first table)
+      const fam = optionalFuse ? optionalFuse.family : (selectedFuse ? selectedFuse.family : null);
+      const Ib  = Number(document.getElementById('currentInputDerate').value);
       const G   = Number(document.getElementById('gFactor').value || 1.0);
 
       const t = Number(document.getElementById('tempInput').value);
@@ -570,63 +543,66 @@
       const freqPairs = pickPairs(freqTable, fam);   // x: Hz  → kF
 
       const kT   = Number.isFinite(t) && tempPairs ? linInterp(tempPairs, t) : NaN;
-
-      // Ke percentage derived from Ib/area
-      const kePct = Number.isFinite(a) ? computeKePercentage(Ib, a) : NaN;       // 50..100
+      const kePct = (Number.isFinite(Ib) && Number.isFinite(a)) ? computeKePercentage(Ib, a) : NaN;
       const kA    = Number.isFinite(kePct) && kePairs ? linInterp(kePairs, kePct) : NaN;
-
       const kV   = Number.isFinite(v) && airPairs  ? linInterp(airPairs,  v) : NaN;
       const kF   = Number.isFinite(f) && freqPairs ? linInterp(freqPairs, f) : NaN;
       const kAlt = Number.isFinite(h) ? getAltitudeFactor(h) : 1.0;
 
-      // Update factor charts (cursor at current input)
+      // Update factor charts (always visible)
       chart_kT.plot(tempPairs, Number.isFinite(t)?t:null);
-      chart_kA.plot(kePairs, Number.isFinite(kePct)? kePct : null);  // use calculated % for x
+      chart_kA.plot(kePairs, Number.isFinite(kePct)? kePct : null);
       chart_kV.plot(airPairs,  Number.isFinite(v)?v:null);
       chart_kF.plot(freqPairs, Number.isFinite(f)?f:null);
 
       // Results panel
       document.getElementById('val-kT').textContent   = isFinite(kT)?  fmt(kT,3): '—';
-      document.getElementById('val-kA').textContent   = isFinite(kA)?  fmt(kA,3): '—';          // Ke
+      document.getElementById('val-kA').textContent   = isFinite(kA)?  fmt(kA,3): '—';
       document.getElementById('val-kePct').textContent= isFinite(kePct)? `${kePct.toFixed(1)} %` : '—';
       document.getElementById('val-kV').textContent   = isFinite(kV)?  fmt(kV,3): '—';
       document.getElementById('val-kF').textContent   = isFinite(kF)?  fmt(kF,3): '—';
       document.getElementById('val-kAlt').textContent = fmt(kAlt,3);
-      document.getElementById('val-Ib').textContent   = fmt(Ib,3);
+      document.getElementById('val-Ib').textContent   = Number.isFinite(Ib)? fmt(Ib,3) : '—';
       document.getElementById('val-G').textContent    = G.toFixed(1);
 
-      const ok = [kT,kA,kV,kF,kAlt].every(x=>isFinite(x) && x>0);
+      const ok = [kT,kA,kV,kF,kAlt,Ib].every(x=>isFinite(x) && x>0);
       const denom = ok ? (kT*kA*kV*kF*kAlt) : NaN;
       const Iderated = isFinite(denom) ? (Ib * G) / denom : NaN;
       document.getElementById('val-Iderated').textContent = isFinite(Iderated)? fmt(Iderated,3) : '—';
 
-      // NEW: update recommendations list (by exact voltage & Iderated)
+      // Update recommendations live
       const Vexact = Number(document.getElementById('voltageInputDerate').value);
       updateRecommendations(Vexact, Iderated);
     }
 
-    // When selecting a recommended fuse, sync selections & update charts
-    document.addEventListener('change', (e)=>{
-      if(e.target && e.target.id === 'recSelect'){
-        const part = e.target.value;
-        const idx = partsIdxByKey.get(part);
-        if(idx === undefined) return;
-        // set selection in derate list too (if present)
-        const derSel = document.getElementById('fuseSelectDerate');
-        if (derSel && derSel.options.length){
-          const optIndex = Array.from(derSel.options).findIndex(o => o.value === part);
-          if(optIndex >= 0){ derSel.selectedIndex = optIndex; }
-        }
-        // update selectedFuse and charts on Curves tab
-        selectedFuse = partsData[idx];
-        document.getElementById('badgePart').textContent=selectedFuse.part;
-        document.getElementById('badgeFamily').textContent=selectedFuse.family;
-        document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
-        document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
-        refreshCurvesCharts();
-        // recompute derating for recommended fuse (family may differ)
-        onFuseSelectedDerate();
-      }
+    // --- Apply to Curves button ---
+    document.getElementById('applyToCurvesBtn').addEventListener('click', ()=>{
+      const recSel = document.getElementById('recSelect');
+      const part = recSel && recSel.value;
+      if(!part) return;
+      const idx = partsIdxByKey.get(part);
+      if(idx === undefined) return;
+
+      selectedFuse = partsData[idx];
+      // update badges
+      document.getElementById('badgePart').textContent=selectedFuse.part;
+      document.getElementById('badgeFamily').textContent=selectedFuse.family;
+      document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
+      document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
+      refreshCurvesCharts();
+
+      // switch to Curves tab
+      activateTab('curves');
+    });
+
+    // Recommendations change: recalc derating using that fuse's family (for factor tables)
+    document.getElementById('recSelect').addEventListener('change', (e)=>{
+      const part = e.target.value;
+      const idx = partsIdxByKey.get(part);
+      const applyBtn = document.getElementById('applyToCurvesBtn');
+      applyBtn.disabled = !part;
+      if(idx === undefined) { computeAndRenderDerating(null); return; }
+      computeAndRenderDerating(partsData[idx]);
     });
 
     // Tab behavior + resize on show
@@ -653,7 +629,7 @@
       tempTable=tjson; areaTable=ajson; freqTable=fjson; airTable=vjson;
       partsData.forEach((p,i)=>{ p.I=Number(p.I); p.V=Number(p.V); partsIdxByKey.set(p.part, i); });
 
-      // Curves tab: build charts
+      // Curves tab charts (render empty until a fuse is applied/selected)
       buildCurvesCharts();
 
       // Curves events
@@ -670,32 +646,16 @@
       document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
       document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
 
-      // Derating events
-      document.getElementById('searchBtnDerate').addEventListener('click', searchFusesDerate);
-      document.getElementById('clearBtnDerate').addEventListener('click',()=>{
-        ['currentInputDerate','voltageInputDerate','tempInput','areaInput','airInput','freqInput','altInput'].forEach(id=>document.getElementById(id).value='');
-        document.getElementById('fuseListDerate').style.display='none';
-        // Clear derating charts
-        ['chart-kT','chart-kA','chart-kV','chart-kF'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
-        // Reset results
-        ['val-kT','val-kA','val-kePct','val-kV','val-kF','val-Ib','val-G','val-Iderated'].forEach(id=>document.getElementById(id).textContent='—');
-        document.getElementById('val-kAlt').textContent='1.000 (pending rule)';
-        // Hide recommendations
-        document.getElementById('recCard').style.display='none';
-        document.getElementById('recSelect').innerHTML='';
-        document.getElementById('recInfo').textContent='';
-      });
-      document.getElementById('fuseSelectDerate').addEventListener('change', onFuseSelectedDerate);
-      document.getElementById('currentInputDerate').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
-      document.getElementById('voltageInputDerate').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
-      document.getElementById('gFactor').addEventListener('change', ()=>{
-        const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value||''); if(idx!==undefined) computeAndRenderDerating(partsData[idx]);
-      });
-      ['tempInput','areaInput','airInput','freqInput','altInput'].forEach(id=>{
-        document.getElementById(id).addEventListener('input', ()=>{
-          const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value||''); if(idx!==undefined) computeAndRenderDerating(partsData[idx]);
-        });
-      });
+      // Derating: make graphs visible immediately and keep them live
+      // Initial draw with no fuse (generic family curves)
+      computeAndRenderDerating(null);
+
+      // Live updates for derating inputs
+      ['currentInputDerate','voltageInputDerate','gFactor','tempInput','areaInput','airInput','freqInput','altInput']
+        .forEach(id=> document.getElementById(id).addEventListener('input', ()=>computeAndRenderDerating(null)));
+
+      // Button explicitly refreshes recommendations (optional; graphs already live)
+      document.getElementById('updateRecsBtn').addEventListener('click', ()=>computeAndRenderDerating(null));
     })();
   </script>
 </body>
