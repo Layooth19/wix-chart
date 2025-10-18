@@ -2,82 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Fuse Selector – Curves + Derating</title>
+  <title>Fuse Selector – Curves + Derating (with Ke %)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    :root{
-      --bg:#f6f7fb;--card:#fff;--text:#111827;--muted:#6b7280;--brand:#2563eb;--ring:#93c5fd
-    }
-    *{box-sizing:border-box}
-    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:var(--bg);color:var(--text);}
-    header{padding:22px 16px 8px;text-align:center}
-    header h1{margin:0 0 6px;font-size:22px}
-    header p{margin:0;color:#6b7280}
-
-    .wrap{max-width:1400px;margin:0 auto;padding:16px;display:grid;gap:16px}
-    .card{background:var(--card);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:14px}
+    :root{ --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --brand:#2563eb; --ring:#93c5fd }
+    *{ box-sizing:border-box }
+    body{ font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; background:var(--bg); color:var(--text) }
+    header{ padding:22px 16px 8px; text-align:center }
+    header h1{ margin:0 0 6px; font-size:22px }
+    header p{ margin:0; color:var(--muted) }
+    .wrap{ max-width:1400px; margin:0 auto; padding:16px; display:grid; gap:16px }
+    .card{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:14px }
 
     /* Tabs */
-    .tabs{display:flex;gap:8px;border-bottom:1px solid #e5e7eb;padding:0 4px}
-    .tabbtn{
-      appearance:none;border:0;background:transparent;
-      padding:10px 14px;border-radius:10px 10px 0 0;font-weight:600;cursor:pointer;
-      color:#374151
-    }
-    .tabbtn[aria-selected="true"]{
-      background:#fff;color:#111827;box-shadow:0 -2px 0 #fff, 0 0 0 1px #e5e7eb;
-    }
-    .tabpanel{display:none}
-    .tabpanel[aria-hidden="false"]{display:block}
+    .tabs{ display:flex; gap:8px; border-bottom:1px solid #e5e7eb; padding:0 4px }
+    .tabbtn{ appearance:none; border:0; background:transparent; padding:10px 14px; border-radius:10px 10px 0 0; font-weight:600; cursor:pointer; color:#374151 }
+    .tabbtn[aria-selected="true"]{ background:#fff; color:#111827; box-shadow:0 -2px 0 #fff, 0 0 0 1px #e5e7eb }
+    .tabpanel{ display:none }
+    .tabpanel[aria-hidden="false"]{ display:block }
 
     /* Controls / layout */
-    .controls{display:grid;gap:10px}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .field{flex:1 1 200px}
-    label{font-size:12px;font-weight:600;color:#6b7280;display:block;margin-bottom:6px}
-    input,select{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none}
-    input:focus,select:focus{box-shadow:0 0 0 3px var(--ring);border-color:#bfdbfe}
-    button{background:var(--brand);color:#fff;border:0;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
-    .ghost{background:#eef2ff;color:#3730a3}
-    .hint{color:#6b7280;font-size:12px;margin:4px 2px 0}
-    .error{color:#b91c1c;margin-top:6px;font-size:13px}
+    .controls{ display:grid; gap:10px }
+    .row{ display:flex; gap:10px; flex-wrap:wrap }
+    .field{ flex:1 1 200px }
+    label{ font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:6px }
+    input,select{ width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; font-size:14px; outline:none }
+    input:focus,select:focus{ box-shadow:0 0 0 3px var(--ring); border-color:#bfdbfe }
+    button{ background:var(--brand); color:#fff; border:0; padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer }
+    .ghost{ background:#eef2ff; color:#3730a3 }
+    .hint{ color:var(--muted); font-size:12px; margin:4px 2px 0 }
+    .error{ color:#b91c1c; margin-top:6px; font-size:13px }
 
-    #fuseSelect, #fuseSelectDerate{height:180px}
+    #fuseSelect, #fuseSelectDerate{ height:180px }
 
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .panel{background:var(--card);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:12px;display:flex;flex-direction:column}
-    .panel h3{margin:2px 6px 8px;font-size:16px;color:#111827}
-    .chart{height:420px;position:relative}
+    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    .panel{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:12px; display:flex; flex-direction:column }
+    .panel h3{ margin:2px 6px 8px; font-size:16px; color:#111827 }
+    .chart{ height:420px; position:relative }
+    .chart-sm{ height:300px; position:relative }
 
-    .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
-    .badge{display:inline-flex;gap:6px;align-items:center;background:#f1f5f9;border-radius:999px;padding:4px 10px;font-size:12px;color:#0f172a}
-    .ctrlrow{display:flex;justify-content:space-between;align-items:center;margin:2px 8px 8px}
-    .small{font-size:12px;color:#6b7280}
+    .badges{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px }
+    .badge{ display:inline-flex; gap:6px; align-items:center; background:#f1f5f9; border-radius:999px; padding:4px 10px; font-size:12px; color:#0f172a }
+    .ctrlrow{ display:flex; justify-content:space-between; align-items:center; margin:2px 8px 8px }
+    .small{ font-size:12px; color:#6b7280 }
 
-    /* Derating cards */
-    .grid-derate{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .chart-sm{height:300px;position:relative}
-    .result-card{display:grid;gap:8px}
-    .kv{display:flex;justify-content:space-between;gap:12px;font-size:14px;border-bottom:1px dashed #e5e7eb;padding:6px 0}
-    .kv strong{color:#111827}
-    .big{font-size:18px;font-weight:700}
+    .grid-derate{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    .result-card{ display:grid; gap:8px }
+    .kv{ display:flex; justify-content:space-between; gap:12px; font-size:14px; border-bottom:1px dashed #e5e7eb; padding:6px 0 }
+    .kv strong{ color:#111827 }
+    .big{ font-size:18px; font-weight:700 }
   </style>
 </head>
 <body>
   <header>
     <h1>Fuse Selector – Curves + Derating</h1>
-    <p>Tab 1: Curves • Tab 2: Derating (with factor curves and final I)</p>
+    <p>Curves: TCC, Watts Loss, Arc Voltage, Cut-off • Derating: kT/Ke/kV/kF (+ altitude)</p>
   </header>
 
   <main class="wrap">
-    <!-- Tabs -->
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tabbtn" role="tab" id="tab-curves" aria-controls="panel-curves" aria-selected="true">Curves</button>
       <button class="tabbtn" role="tab" id="tab-derate" aria-controls="panel-derate" aria-selected="false">Derating</button>
     </nav>
 
-    <!-- Curves tab -->
+    <!-- CURVES TAB -->
     <section id="panel-curves" class="tabpanel" role="tabpanel" aria-labelledby="tab-curves" aria-hidden="false">
       <section class="card">
         <div class="controls">
@@ -132,7 +121,7 @@
       </section>
     </section>
 
-    <!-- Derating tab -->
+    <!-- DERATING TAB -->
     <section id="panel-derate" class="tabpanel" role="tabpanel" aria-labelledby="tab-derate" aria-hidden="true">
       <section class="card">
         <div class="controls">
@@ -172,6 +161,10 @@
               <label for="altInput">Operating altitude (m)</label>
               <input type="number" id="altInput" placeholder="e.g., 1000" step="1" />
             </div>
+            <div class="field" style="align-self:flex-end;display:flex;gap:8px">
+              <button id="searchBtnDerate">Search</button>
+              <button id="clearBtnDerate" class="ghost" type="button">Clear</button>
+            </div>
           </div>
 
           <div id="fuseListDerate" style="display:none">
@@ -189,7 +182,7 @@
           <div id="chart-kT" class="chart-sm"></div>
         </div>
         <div class="panel">
-          <div class="ctrlrow"><h3>Conductor Area Factor (kA)</h3><span class="small">x: Cross-section (mm²) • y: kA</span></div>
+          <div class="ctrlrow"><h3>Conductor Percentage Factor (Ke)</h3><span class="small">x: Calculated percentage (%) • y: Ke</span></div>
           <div id="chart-kA" class="chart-sm"></div>
         </div>
         <div class="panel">
@@ -204,7 +197,8 @@
 
       <section class="card result-card">
         <div class="kv"><span>kT (temperature)</span><strong id="val-kT">—</strong></div>
-        <div class="kv"><span>kA (conductor area)</span><strong id="val-kA">—</strong></div>
+        <div class="kv"><span>Ke (conductor %)</span><strong id="val-kA">—</strong></div>
+        <div class="kv"><span>Ke % (from Ib/area)</span><strong id="val-kePct">—</strong></div>
         <div class="kv"><span>kV (air speed)</span><strong id="val-kV">—</strong></div>
         <div class="kv"><span>kF (frequency)</span><strong id="val-kF">—</strong></div>
         <div class="kv"><span>kAlt (altitude)</span><strong id="val-kAlt">1.000 (pending rule)</strong></div>
@@ -222,10 +216,9 @@
     const wattsUrl  = 'watts_loss_restructured.json';
     const arcUrl    = 'arc_voltage_restructured.json';
     const cutUrl    = 'cutoff_restructured.json';
-
-    // Derating factor JSONs (sheetName -> [{x,y}, ...])
+    // Derating factor JSONs (sheetName -> [{x, y}])
     const tempJsonUrl = 'temperature_k_factor.json';
-    const areaJsonUrl = 'percentage_ke_factor.json';
+    const areaJsonUrl = 'percentage_ke_factor.json'; // x = % (50..100), y = Ke
     const freqJsonUrl = 'frequency_kf_data.json';
     const airJsonUrl  = 'air_speed_kv_data.json';
 
@@ -237,56 +230,39 @@
     let tccData={}, wattsData={}, arcData={}, cutData={};
     let selectedFuse=null;
 
-    // Derating tables: we’ll use the sheet name that matches the selected fuse’s family, if present.
+    // Derating tables
     let tempTable={}, areaTable={}, freqTable={}, airTable={};
 
-    // tabs
-    const tabCurves = document.getElementById('tab-curves');
-    const tabDerate = document.getElementById('tab-derate');
-    const panelCurves = document.getElementById('panel-curves');
-    const panelDerate = document.getElementById('panel-derate');
+    // Tabs
+    const tabCurves  = document.getElementById('tab-curves');
+    const tabDerate  = document.getElementById('tab-derate');
+    const panelCurves= document.getElementById('panel-curves');
+    const panelDerate= document.getElementById('panel-derate');
 
-    // ---------- utilities ----------
-    async function loadJSON(url){
-      const res = await fetch(url);
-      if(!res.ok) throw new Error(`Failed to load ${url}`);
-      return res.json();
-    }
-    function fmt(n, d=3){ return Number(n).toFixed(d); }
-    function normalizeRatingKey(I){ const base = `${I}A`; return [base, `${base}*`, `${I} A`]; }
+    // -------- utilities --------
+    async function loadJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error(`Failed to load ${url}`); return r.json(); }
+    function fmt(n,d=3){ return Number(n).toFixed(d); }
+    function normalizeRatingKey(I){ const base=`${I}A`; return [base, `${base}*`, `${I} A`]; }
     function formatOption(p){ return `${p.part}  —  ${p.family}  •  ${p.I}A  •  ${p.V}V`; }
 
-    // linear interpolation over an array of {x,y} pairs (assumes x ascending)
     function linInterp(pairs, x){
       if(!pairs || !pairs.length) return NaN;
-      // ensure sorted
       const arr = pairs.slice().sort((a,b)=>a.x-b.x);
       if(x <= arr[0].x) return arr[0].y;
       if(x >= arr[arr.length-1].x) return arr[arr.length-1].y;
-      // binary search
       let lo=0, hi=arr.length-1;
-      while(lo<=hi){
-        const mid=(lo+hi)>>1;
-        if(arr[mid].x===x) return arr[mid].y;
-        if(arr[mid].x<x) lo=mid+1; else hi=mid-1;
-      }
-      const i2 = Math.min(arr.length-1, lo);
-      const i1 = Math.max(0, i2-1);
-      const t = (x - arr[i1].x) / (arr[i2].x - arr[i1].x);
+      while(lo<=hi){ const m=(lo+hi)>>1; if(arr[m].x===x) return arr[m].y; if(arr[m].x<x) lo=m+1; else hi=m-1; }
+      const i2=Math.min(arr.length-1, lo), i1=Math.max(0, i2-1);
+      const t=(x-arr[i1].x)/(arr[i2].x-arr[i1].x);
       return arr[i1].y + t*(arr[i2].y - arr[i1].y);
     }
 
-    // ---------------- CURVES TAB (same as before, shortened here) ----------------
-    // (For brevity, this section wires up the four curves exactly like your last working version,
-    // with smooth interpolation, cursor dot, always-on tooltip, axis tweaks for each chart)
-    // To keep this message focused, I’ve trimmed comments; functionality is unchanged.
-
-    // per-chart dense caches for snapping
+    // ---------- CURVES TAB (same interactive behavior as before) ----------
     const denseCache = { tcc:{X:[],Y:[]}, watts:{X:[],Y:[]}, arc:{X:[],Y:[]}, cut:{X:[],Y:[]} };
 
     function prepSeries(xs, ys){
       const pairs = xs.map((x,i)=>[Number(x), Number(ys[i])])
-        .filter(p=> Number.isFinite(p[0]) && Number.isFinite(p[1]))
+        .filter(p=> Number.isFinite(p[0]) && Number.isFinite(p[1]) && p[0]>0 && p[1]>0)
         .sort((a,b)=> a[0]-b[0]);
       return {X:pairs.map(p=>p[0]), Y:pairs.map(p=>p[1])};
     }
@@ -295,14 +271,10 @@
         const xMin=X[0], xMax=X[X.length-1], step=(xMax-xMin)/(samples-1);
         const dx=[], dy=[];
         for(let k=0;k<samples;k++){
-          const xq=xMin+step*k;
-          let j=1; while(j<X.length && X[j]<xq) j++;
-          if(j<=0) {dx.push(X[0]); dy.push(Y[0]);}
+          const xq=xMin+step*k; let j=1; while(j<X.length && X[j]<xq) j++;
+          if(j<=0){dx.push(X[0]); dy.push(Y[0]);}
           else if(j>=X.length){dx.push(X.at(-1)); dy.push(Y.at(-1));}
-          else {
-            const t=(xq-X[j-1])/(X[j]-X[j-1]);
-            dx.push(xq); dy.push(Y[j-1]+t*(Y[j]-Y[j-1]));
-          }
+          else {const t=(xq-X[j-1])/(X[j]-X[j-1]); dx.push(xq); dy.push(Y[j-1]+t*(Y[j]-Y[j-1]));}
         }
         return {denseX:dx, denseY:dy};
       } else {
@@ -310,9 +282,8 @@
         const lxMin=lx[0], lxMax=lx[lx.length-1], step=(lxMax-lxMin)/(samples-1);
         const dx=[], dy=[];
         for(let k=0;k<samples;k++){
-          const q=lxMin+step*k;
-          let lo=0, hi=lx.length-1, j=lx.length-1;
-          while(lo<=hi){const m=(lo+hi)>>1; if(lx[m]>=q){j=m;hi=m-1}else lo=m+1}
+          const q=lxMin+step*k; let lo=0, hi=lx.length-1, j=lx.length-1;
+          while(lo<=hi){ const m=(lo+hi)>>1; if(lx[m]>=q){ j=m; hi=m-1; } else { lo=m+1; } }
           if(j===0){dx.push(10**lx[0]); dy.push(10**ly[0]);}
           else if(j>=lx.length){dx.push(10**lx.at(-1)); dy.push(10**ly.at(-1));}
           else {const t=(q-lx[j-1])/(lx[j]-lx[j-1]); dx.push(10**q); dy.push(10**(ly[j-1]+t*(ly[j]-ly[j-1])));}
@@ -325,7 +296,7 @@
       if(!arr.length) return 0;
       if(x<=arr[0]) return 0;
       if(x>=arr[hi]) return hi;
-      while(lo<=hi){const m=(lo+hi)>>1; if(arr[m]===x) return m; if(arr[m]<x) lo=m+1; else hi=m-1;}
+      while(lo<=hi){ const m=(lo+hi)>>1; if(arr[m]===x) return m; if(arr[m]<x) lo=m+1; else hi=m-1; }
       const i1=Math.max(0,lo-1), i2=Math.min(arr.length-1,lo);
       return Math.abs(arr[i1]-x)<=Math.abs(arr[i2]-x)?i1:i2;
     }
@@ -374,7 +345,6 @@
           xaxis:{type:axisTypes.x,title:axisLabels.x,range:axisTypes.x==='log'?[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05]:[xMin,xMax],gridcolor:'#f1f5f9'},
           yaxis:{type:axisTypes.y,title:axisLabels.y,range:fixedYRange?fixedYRange:(axisTypes.y==='log'?[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05]:[yMin,yMax]),gridcolor:'#f1f5f9'},
           margin:{l:60,r:10,t:34,b:48}};
-        // Special rules from your last version
         if(cacheKey==='watts'){ const ymax=Math.max(...Y); layout.yaxis.range=[0.1, Math.max(0.11, ymax*1.05)]; }
         if(cacheKey==='arc'){ layout.yaxis.range=[300,3000]; }
         Plotly.newPlot(containerId, [traceDense, traceRaw, traceCursor], layout, PLOT_CONFIG).then(gd=>attachAlwaysOnTooltip(gd, cacheKey, tooltip));
@@ -382,39 +352,33 @@
       plotCurve(); return { refresh: plotCurve };
     }
 
-    // Curves getters (same as before)
+    // Curve getters
     function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
     function getWattsCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(wattsData[fam]||{})["all"]; if(!c)return null; const s=prepSeries(c.current,c.time); return {X:s.X.map(v=>Math.min(v*100,100)), Y:s.Y}; }
     function getArcCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(arcData[fam]||{})["all"]; if(!c)return null; return prepSeries(c.current,c.time); }
     function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=`${selectedFuse.I}A`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
 
-    // Tooltips per chart
+    // Tooltips
     const tooltipFmt = {
-      tcc:  (x,y)=> `Current: ${formatPretty(x)} A  |  Time: ${formatPrettyTime(y)} s`,
+      tcc:  (x,y)=> `Current: ${pretty(x)} A  |  Time: ${prettyTime(y)} s`,
       watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
-      arc:  (x,y)=> `Eg: ${formatPretty(x)}  |  Ul: ${y.toFixed(0)} V`,
-      cut:  (x,y)=> `Prospective: ${formatPretty(x)} A  |  Let-through: ${formatPretty(y)} A`,
+      arc:  (x,y)=> `Eg: ${pretty(x)}  |  Ul: ${y.toFixed(0)} V`,
+      cut:  (x,y)=> `Prospective: ${pretty(x)} A  |  Let-through: ${pretty(y)} A`,
     };
-    function formatPretty(v){
-      if(v>=1000) return v.toFixed(0);
-      if(v>=100) return v.toFixed(1);
-      if(v>=10) return v.toFixed(2);
-      if(v>=1) return v.toFixed(3);
-      return v.toExponential(2);
-    }
-    function formatPrettyTime(v){ return v>=1? v.toFixed(3) : v.toExponential(2); }
+    function pretty(v){ if(v>=1000) return v.toFixed(0); if(v>=100) return v.toFixed(1); if(v>=10) return v.toFixed(2); if(v>=1) return v.toFixed(3); return v.toExponential(2); }
+    function prettyTime(v){ return v>=1? v.toFixed(3) : v.toExponential(2); }
 
-    // Build 4 charts
+    // Build & refresh curves charts
     let chartTcc, chartWatts, chartArc, chartCut;
     function buildCurvesCharts(){
-      chartTcc = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
+      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
       chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts });
-      chartArc = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc });
-      chartCut = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut });
+      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc });
+      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut });
     }
     function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); }
 
-    // Search for curves tab
+    // CURVES: search & selection
     function searchFuses(){
       const I=Number(document.getElementById('currentInput').value);
       const V=Number(document.getElementById('voltageInput').value);
@@ -438,12 +402,11 @@
       refreshCurvesCharts();
     }
 
-    // ---------------- DERATING TAB ----------------
-    // Build G factor dropdown
+    // ---------- DERATING TAB ----------
+    // G options 1.0 → 2.0 step 0.1
     const gSel = document.getElementById('gFactor');
     (function fillG(){ for(let g=1.0; g<=2.0001; g+=0.1){ const opt=document.createElement('option'); opt.value=g.toFixed(1); opt.textContent=g.toFixed(1); gSel.appendChild(opt);} })();
 
-    // Search for derating tab
     function searchFusesDerate(){
       const I=Number(document.getElementById('currentInputDerate').value);
       const V=Number(document.getElementById('voltageInputDerate').value);
@@ -458,39 +421,29 @@
       sel.selectedIndex=0; onFuseSelectedDerate();
     }
 
-    // Factor tables: choose sheet matching selected family if it exists; otherwise use first sheet
-    function pickPairs(table, family){
-      if(!table) return null;
-      if(table[family]) return table[family];
-      const keys=Object.keys(table);
-      return keys.length ? table[keys[0]] : null;
-    }
+    function pickPairs(table, family){ if(!table) return null; if(table[family]) return table[family]; const keys=Object.keys(table); return keys.length? table[keys[0]] : null; }
 
-    // Build a small factor chart (linear axes) with cursor at input x
-    function buildFactorChart(containerId, title, axisLabels){
+    // Small factor chart (linear axes) with optional fixed X range
+    function buildFactorChart(containerId, title, axisLabels, fixedXRange=null){
       const container=document.getElementById(containerId);
       function plot(pairs, xCurrent){
-        if(!pairs || !pairs.length){ Plotly.purge(containerId); container.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">No data.</div>'; return; }
+        if(!pairs || !pairs.length){ Plotly.purge(containerId); container.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">No data.</div>'; return {cx:null, cy:null}; }
         const arr=pairs.slice().sort((a,b)=>a.x-b.x);
         const X=arr.map(p=>p.x), Y=arr.map(p=>p.y);
-        // linear dense interpolation for smoothness
         const samples=500; const xMin=X[0], xMax=X[X.length-1], step=(xMax-xMin)/(samples-1);
         const dX=[], dY=[];
         for(let k=0;k<samples;k++){
-          const xq=xMin+step*k;
-          let j=1; while(j<X.length && X[j]<xq) j++;
+          const xq=xMin+step*k; let j=1; while(j<X.length && X[j]<xq) j++;
           if(j<=0){dX.push(X[0]); dY.push(Y[0]);}
           else if(j>=X.length){dX.push(X.at(-1)); dY.push(Y.at(-1));}
           else {const t=(xq-X[j-1])/(X[j]-X[j-1]); dX.push(xq); dY.push(Y[j-1]+t*(Y[j]-Y[j-1]));}
         }
-        const idx = (()=>{
+        // position cursor at current x
+        const idx=(()=>{
           if(xCurrent==null) return 0;
-          let lo=0, hi=dX.length-1;
-          if(xCurrent<=dX[0]) return 0;
-          if(xCurrent>=dX[hi]) return hi;
+          let lo=0, hi=dX.length-1; if(xCurrent<=dX[0]) return 0; if(xCurrent>=dX[hi]) return hi;
           while(lo<=hi){const m=(lo+hi)>>1; if(dX[m]===xCurrent) return m; if(dX[m]<xCurrent) lo=m+1; else hi=m-1;}
-          const i1=Math.max(0,lo-1), i2=Math.min(dX.length-1,lo);
-          return Math.abs(dX[i1]-xCurrent)<=Math.abs(dX[i2]-xCurrent)?i1:i2;
+          const i1=Math.max(0,lo-1), i2=Math.min(dX.length-1,lo); return Math.abs(dX[i1]-xCurrent)<=Math.abs(dX[i2]-xCurrent)?i1:i2;
         })();
         const cx=dX[idx], cy=dY[idx];
 
@@ -498,7 +451,7 @@
         const traceRaw={x:X,y:Y,mode:'lines+markers',type:'scatter',name:'Raw',line:{width:2},marker:{size:5}};
         const traceCursor={x:[cx],y:[cy],mode:'markers',type:'scatter',name:'Cursor',marker:{size:12,symbol:'circle',line:{width:2}},hoverinfo:'skip'};
         const layout={title, hovermode:'closest', dragmode:'pan', uirevision:title,
-          xaxis:{type:'linear', title:axisLabels.x, range:[xMin, xMax], gridcolor:'#f1f5f9'},
+          xaxis:{type:'linear', title:axisLabels.x, range: fixedXRange || [X[0], X[X.length-1]], gridcolor:'#f1f5f9'},
           yaxis:{type:'linear', title:axisLabels.y, gridcolor:'#f1f5f9'},
           margin:{l:60,r:10,t:34,b:48}};
         Plotly.newPlot(containerId, [traceDense, traceRaw, traceCursor], layout, PLOT_CONFIG);
@@ -508,26 +461,35 @@
     }
 
     const chart_kT = buildFactorChart('chart-kT', 'Temperature Factor (kT)', {x:'Ambient temp (°C)', y:'kT'});
-    const chart_kA = buildFactorChart('chart-kA', 'Conductor Area Factor (kA)', {x:'Cross-section (mm²)', y:'kA'});
+    // Ke (%): fix x-range to [50, 100] as per your rule
+    const chart_kA = buildFactorChart('chart-kA', 'Conductor Percentage Factor (Ke)', {x:'Calculated percentage (%)', y:'Ke'}, [50, 100]);
     const chart_kV = buildFactorChart('chart-kV', 'Air Speed Factor (kV)', {x:'Air speed (m/s)', y:'kV'});
     const chart_kF = buildFactorChart('chart-kF', 'Frequency Factor (kF)', {x:'Frequency (Hz)', y:'kF'});
+
+    // Ke percentage from current density
+    function computeKePercentage(Ib, areaMm2){
+      if (!Number.isFinite(Ib) || !Number.isFinite(areaMm2) || areaMm2 <= 0) return NaN;
+      const J = Ib / areaMm2;                          // A/mm²
+      const pctRaw = (1 - (1.3 / J)) * 100;            // ((J - 1.3)/J)*100
+      if (!Number.isFinite(pctRaw)) return NaN;
+      return Math.max(50, Math.min(100, pctRaw));      // clamp to [50, 100]
+    }
+
+    function getAltitudeFactor(altMeters){
+      // TODO: Replace with your altitude derating logic
+      return 1.0;
+    }
 
     function onFuseSelectedDerate(){
       const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value); if(idx===undefined) return;
       const fuse=partsData[idx];
-      // compute factors
       computeAndRenderDerating(fuse);
-    }
-
-    function getAltitudeFactor(altMeters){
-      // TODO: replace with your altitude derating logic; currently neutral
-      return 1.0;
     }
 
     function computeAndRenderDerating(fuse){
       const fam = fuse.family;
-      const Ib = Number(fuse.I);
-      const G  = Number(document.getElementById('gFactor').value || 1.0);
+      const Ib  = Number(fuse.I);
+      const G   = Number(document.getElementById('gFactor').value || 1.0);
 
       const t = Number(document.getElementById('tempInput').value);
       const a = Number(document.getElementById('areaInput').value);
@@ -535,70 +497,59 @@
       const f = Number(document.getElementById('freqInput').value);
       const h = Number(document.getElementById('altInput').value);
 
-      const tempPairs = pickPairs(tempTable, fam);
-      const areaPairs = pickPairs(areaTable, fam);
-      const airPairs  = pickPairs(airTable, fam);
-      const freqPairs = pickPairs(freqTable, fam);
+      const tempPairs = pickPairs(tempTable, fam);   // x: °C  → kT
+      const kePairs   = pickPairs(areaTable, fam);   // x: %   → Ke
+      const airPairs  = pickPairs(airTable, fam);    // x: m/s → kV
+      const freqPairs = pickPairs(freqTable, fam);   // x: Hz  → kF
 
-      const kT = Number.isFinite(t) && tempPairs ? linInterp(tempPairs, t) : NaN;
-      const kA = Number.isFinite(a) && areaPairs ? linInterp(areaPairs, a) : NaN;
-      const kV = Number.isFinite(v) && airPairs  ? linInterp(airPairs,  v) : NaN;
-      const kF = Number.isFinite(f) && freqPairs ? linInterp(freqPairs, f) : NaN;
+      const kT   = Number.isFinite(t) && tempPairs ? linInterp(tempPairs, t) : NaN;
+
+      // NEW: Ke percentage derived from Ib/area
+      const kePct = Number.isFinite(a) ? computeKePercentage(Ib, a) : NaN;       // 50..100
+      const kA    = Number.isFinite(kePct) && kePairs ? linInterp(kePairs, kePct) : NaN;
+
+      const kV   = Number.isFinite(v) && airPairs  ? linInterp(airPairs,  v) : NaN;
+      const kF   = Number.isFinite(f) && freqPairs ? linInterp(freqPairs, f) : NaN;
       const kAlt = Number.isFinite(h) ? getAltitudeFactor(h) : 1.0;
 
-      // Update small factor charts with cursor at current inputs
-      const rT = chart_kT.plot(tempPairs, Number.isFinite(t)?t:null);
-      const rA = chart_kA.plot(areaPairs, Number.isFinite(a)?a:null);
-      const rV = chart_kV.plot(airPairs,  Number.isFinite(v)?v:null);
-      const rF = chart_kF.plot(freqPairs, Number.isFinite(f)?f:null);
+      // Update factor charts (cursor at current input)
+      chart_kT.plot(tempPairs, Number.isFinite(t)?t:null);
+      chart_kA.plot(kePairs, Number.isFinite(kePct)? kePct : null);  // use calculated % for x
+      chart_kV.plot(airPairs,  Number.isFinite(v)?v:null);
+      chart_kF.plot(freqPairs, Number.isFinite(f)?f:null);
 
-      // Values panel
-      document.getElementById('val-kT').textContent   = isFinite(kT)? fmt(kT,3): '—';
-      document.getElementById('val-kA').textContent   = isFinite(kA)? fmt(kA,3): '—';
-      document.getElementById('val-kV').textContent   = isFinite(kV)? fmt(kV,3): '—';
-      document.getElementById('val-kF').textContent   = isFinite(kF)? fmt(kF,3): '—';
+      // Results panel
+      document.getElementById('val-kT').textContent   = isFinite(kT)?  fmt(kT,3): '—';
+      document.getElementById('val-kA').textContent   = isFinite(kA)?  fmt(kA,3): '—';          // Ke
+      document.getElementById('val-kePct').textContent= isFinite(kePct)? `${kePct.toFixed(1)} %` : '—';
+      document.getElementById('val-kV').textContent   = isFinite(kV)?  fmt(kV,3): '—';
+      document.getElementById('val-kF').textContent   = isFinite(kF)?  fmt(kF,3): '—';
       document.getElementById('val-kAlt').textContent = fmt(kAlt,3);
       document.getElementById('val-Ib').textContent   = fmt(Ib,3);
-      document.getElementById('val-G').textContent    = fmt(G,1);
+      document.getElementById('val-G').textContent    = G.toFixed(1);
 
-      const product = [kT,kA,kV,kF,kAlt].every(x=>isFinite(x) && x>0) ? (kT*kA*kV*kF*kAlt) : NaN;
-      const Iderated = isFinite(product) ? (Ib * G) / product : NaN;
+      const ok = [kT,kA,kV,kF,kAlt].every(x=>isFinite(x) && x>0);
+      const denom = ok ? (kT*kA*kV*kF*kAlt) : NaN;
+      const Iderated = isFinite(denom) ? (Ib * G) / denom : NaN;
       document.getElementById('val-Iderated').textContent = isFinite(Iderated)? fmt(Iderated,3) : '—';
     }
 
-    // Derating events
-    document.getElementById('currentInputDerate').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
-    document.getElementById('voltageInputDerate').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
-    document.getElementById('gFactor').addEventListener('change', ()=> {
-      const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value||''); if(idx!==undefined) computeAndRenderDerating(partsData[idx]);
-    });
-    ['tempInput','areaInput','airInput','freqInput','altInput'].forEach(id=>{
-      document.getElementById(id).addEventListener('input', ()=>{
-        const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value||''); if(idx!==undefined) computeAndRenderDerating(partsData[idx]);
-      });
-    });
-    document.getElementById('fuseSelectDerate').addEventListener('change', onFuseSelectedDerate);
-
-    // Tabs behavior + relayout on show
+    // Tab behavior + resize on show
     function activateTab(which){
       const isCurves = which==='curves';
       tabCurves.setAttribute('aria-selected', isCurves?'true':'false');
       tabDerate.setAttribute('aria-selected', isCurves?'false':'true');
       panelCurves.setAttribute('aria-hidden', isCurves?'false':'true');
       panelDerate.setAttribute('aria-hidden', isCurves?'true':'false');
-      // When showing curves again, relayout to fit
-      if(isCurves){
-        ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ if(document.getElementById(id).children.length){ Plotly.Plots.resize(id); }});
-      } else {
-        ['chart-kT','chart-kA','chart-kV','chart-kF'].forEach(id=>{ if(document.getElementById(id).children.length){ Plotly.Plots.resize(id); }});
-      }
+      const ids = isCurves ? ['chart-tcc','chart-watts','chart-arc','chart-cutoff']
+                           : ['chart-kT','chart-kA','chart-kV','chart-kF'];
+      ids.forEach(id=>{ const el=document.getElementById(id); if(el && el.children.length){ Plotly.Plots.resize(id); }});
     }
     tabCurves.addEventListener('click', ()=>activateTab('curves'));
     tabDerate.addEventListener('click', ()=>activateTab('derate'));
 
-    // ---------------- boot ----------------
+    // Boot
     (async () => {
-      // Load all data files
       const [parts, tcc, watts, arc, cut, tjson, ajson, fjson, vjson] = await Promise.all([
         loadJSON(partsUrl), loadJSON(tccUrl), loadJSON(wattsUrl), loadJSON(arcUrl), loadJSON(cutUrl),
         loadJSON(tempJsonUrl), loadJSON(areaJsonUrl), loadJSON(freqJsonUrl), loadJSON(airJsonUrl)
@@ -606,35 +557,46 @@
       partsData=parts; tccData=tcc; wattsData=watts; arcData=arc; cutData=cut;
       tempTable=tjson; areaTable=ajson; freqTable=fjson; airTable=vjson;
       partsData.forEach((p,i)=>{ p.I=Number(p.I); p.V=Number(p.V); partsIdxByKey.set(p.part, i); });
-      // Build curves charts now; derating charts render on selection
+
+      // Curves tab: build charts
       buildCurvesCharts();
-      // Wire search buttons
+
+      // Curves events
       document.getElementById('searchBtn').addEventListener('click', searchFuses);
       document.getElementById('clearBtn').addEventListener('click',()=>{
-        document.getElementById('currentInput').value=''; document.getElementById('voltageInput').value='';
-        document.getElementById('fuseListContainer').style.display='none'; selectedFuse=null;
+        document.getElementById('currentInput').value='';
+        document.getElementById('voltageInput').value='';
+        document.getElementById('fuseListContainer').style.display='none';
+        selectedFuse=null;
         ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
       });
       document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); }});
+      document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
+      document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
+      document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
 
-      // Derating search
-      document.getElementById('tab-derate').addEventListener('click', ()=>{
-        // if user filled derate inputs already, compute on selection
-        const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get((sel.value||'')); if(idx!==undefined) computeAndRenderDerating(partsData[idx]);
+      // Derating events
+      document.getElementById('searchBtnDerate').addEventListener('click', searchFusesDerate);
+      document.getElementById('clearBtnDerate').addEventListener('click',()=>{
+        ['currentInputDerate','voltageInputDerate','tempInput','areaInput','airInput','freqInput','altInput'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('fuseListDerate').style.display='none';
+        // Clear derating charts
+        ['chart-kT','chart-kA','chart-kV','chart-kF'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
+        // Reset results
+        ['val-kT','val-kA','val-kePct','val-kV','val-kF','val-Ib','val-G','val-Iderated'].forEach(id=>document.getElementById(id).textContent='—');
+        document.getElementById('val-kAlt').textContent='1.000 (pending rule)';
       });
-      // Add search button behavior for derating
-      const derateSearchBtn = document.createElement('button');
-      derateSearchBtn.textContent = 'Search (Derating tab)';
-      derateSearchBtn.style.display='none'; // we trigger via Enter key or manual call
-      document.body.appendChild(derateSearchBtn);
-
-      // Hook separate search button equivalents for Derating inputs
-      const s1 = document.getElementById('currentInputDerate');
-      const s2 = document.getElementById('voltageInputDerate');
-      s1.addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
-      s2.addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
-
-      // Done
+      document.getElementById('fuseSelectDerate').addEventListener('change', onFuseSelectedDerate);
+      document.getElementById('currentInputDerate').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
+      document.getElementById('voltageInputDerate').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFusesDerate(); });
+      document.getElementById('gFactor').addEventListener('change', ()=>{
+        const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value||''); if(idx!==undefined) computeAndRenderDerating(partsData[idx]);
+      });
+      ['tempInput','areaInput','airInput','freqInput','altInput'].forEach(id=>{
+        document.getElementById(id).addEventListener('input', ()=>{
+          const sel=document.getElementById('fuseSelectDerate'); const idx=partsIdxByKey.get(sel.value||''); if(idx!==undefined) computeAndRenderDerating(partsData[idx]);
+        });
+      });
     })();
   </script>
 </body>
