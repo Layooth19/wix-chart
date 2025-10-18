@@ -469,11 +469,12 @@
     // Ke percentage from current density
     function computeKePercentage(Ib, areaMm2){
       if (!Number.isFinite(Ib) || !Number.isFinite(areaMm2) || areaMm2 <= 0) return NaN;
-      const J = Ib / areaMm2;                          // A/mm²
-      const pctRaw = (1 - (1.3 / J)) * 100;            // ((J - 1.3)/J)*100
+      const J = Ib / areaMm2;                   // A/mm²
+      const pctRaw = (1 - (J - 1.3) / J) * 100; // <-- UPDATED: (1 - (J - 1.3)/J)*100  == (1.3/J)*100
       if (!Number.isFinite(pctRaw)) return NaN;
-      return Math.max(50, Math.min(100, pctRaw));      // clamp to [50, 100]
+      return Math.max(50, Math.min(100, pctRaw)); // clamp to [50, 100] as specified
     }
+
 
     function getAltitudeFactor(altMeters){
       // TODO: Replace with your altitude derating logic
@@ -601,3 +602,4 @@
   </script>
 </body>
 </html>
+
