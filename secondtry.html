@@ -44,7 +44,7 @@
 <body>
   <header>
     <h1>Fuse Selector – Multiple Curves</h1>
-    <p>Enter ratings → pick a part → see all four curves updated together.</p>
+    <p>Enter ratings → pick a part → see TCC, Watts Loss, Arc Voltage, and Cut-off together.</p>
   </header>
 
   <main class="wrap">
@@ -87,11 +87,11 @@
         <div id="chart-tcc" class="chart"></div>
       </div>
       <div class="panel">
-        <div class="ctrlrow"><h3>Watts Loss</h3><span class="small">x: Ib • y: Kp</span></div>
+        <div class="ctrlrow"><h3>Watts Loss</h3><span class="small">x: Load Current (%) • y: Kp</span></div>
         <div id="chart-watts" class="chart"></div>
       </div>
       <div class="panel">
-        <div class="ctrlrow"><h3>Arc Voltage</h3><span class="small">x/y as per sheet</span></div>
+        <div class="ctrlrow"><h3>Arc Voltage</h3><span class="small">x: Eg • y: Ul (300–3000 V)</span></div>
         <div id="chart-arc" class="chart"></div>
       </div>
       <div class="panel">
@@ -120,12 +120,18 @@
 
     let selectedFuse = null;
 
-    // per-chart dense cache for snapping
+    // per-chart dense cache + tooltip formatter
     const denseCache = {
       tcc:   { X: [], Y: [] },
       watts: { X: [], Y: [] },
       arc:   { X: [], Y: [] },
       cut:   { X: [], Y: [] }
+    };
+    const tooltipFmt = {
+      tcc:  (x,y)=> `Current: ${fmtNumber(x)} A  |  Time: ${fmtTime(y)} s`,
+      watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
+      arc:  (x,y)=> `Eg: ${fmtNumber(x)}  |  Ul: ${y.toFixed(0)} V`,
+      cut:  (x,y)=> `Prospective: ${fmtNumber(x)} A  |  Let-through: ${fmtNumber(y)} A`,
     };
 
     // ----------- helpers ----------
@@ -135,7 +141,6 @@
       const txt = await res.text();
       try { return JSON.parse(txt); }
       catch {
-        // light fix for object adjacency
         const fixed = txt.replace(/}\s*\n\s*{/g,'},\n{');
         return JSON.parse(fixed);
       }
@@ -158,23 +163,45 @@
       return {X:pairs.map(p=>p[0]), Y:pairs.map(p=>p[1])};
     }
 
-    function interpolateLogLog(X,Y,samples){
-      const lx = X.map(Math.log10), ly = Y.map(Math.log10);
-      const lxMin = lx[0], lxMax = lx[lx.length-1];
-      const dx = (lxMax-lxMin)/(samples-1);
-      const denseX=[], denseY=[];
-      for(let k=0;k<samples;k++){
-        const q = lxMin + dx*k;
-        // upper_bound
-        let lo=0, hi=lx.length-1, j=lx.length-1;
-        while(lo<=hi){ const m=(lo+hi)>>1; if(lx[m]>=q){ j=m; hi=m-1; } else { lo=m+1; } }
-        if(j===0){ denseX.push(10**lx[0]); denseY.push(10**ly[0]); continue; }
-        if(j>=lx.length){ denseX.push(10**lx.at(-1)); denseY.push(10**ly.at(-1)); continue; }
-        const t=(q-lx[j-1])/(lx[j]-lx[j-1]);
-        const lyq = ly[j-1] + t*(ly[j]-ly[j-1]);
-        denseX.push(10**q); denseY.push(10**lyq);
+    // interpolation for log-log or linear-linear
+    function interpolateSeries(X,Y,samples, mode='log'){
+      if (mode === 'linear') {
+        const xMin = X[0], xMax = X[X.length-1];
+        const step = (xMax - xMin) / (samples - 1);
+        const denseX=[], denseY=[];
+        for(let k=0;k<samples;k++){
+          const xq = xMin + step*k;
+          // locate segment
+          let j = 1;
+          while (j < X.length && X[j] < xq) j++;
+          if (j === 0){ denseX.push(X[0]); denseY.push(Y[0]); }
+          else if (j >= X.length){ denseX.push(X.at(-1)); denseY.push(Y.at(-1)); }
+          else {
+            const t = (xq - X[j-1])/(X[j]-X[j-1]);
+            const yq = Y[j-1] + t*(Y[j]-Y[j-1]);
+            denseX.push(xq); denseY.push(yq);
+          }
+        }
+        return {denseX, denseY};
+      } else {
+        // log-log
+        const lx = X.map(Math.log10), ly = Y.map(Math.log10);
+        const lxMin = lx[0], lxMax = lx[lx.length-1];
+        const dx = (lxMax-lxMin)/(samples-1);
+        const denseX=[], denseY=[];
+        for(let k=0;k<samples;k++){
+          const q = lxMin + dx*k;
+          // upper_bound
+          let lo=0, hi=lx.length-1, j=lx.length-1;
+          while(lo<=hi){ const m=(lo+hi)>>1; if(lx[m]>=q){ j=m; hi=m-1; } else { lo=m+1; } }
+          if(j===0){ denseX.push(10**lx[0]); denseY.push(10**ly[0]); continue; }
+          if(j>=lx.length){ denseX.push(10**lx.at(-1)); denseY.push(10**ly.at(-1)); continue; }
+          const t=(q-lx[j-1])/(lx[j]-lx[j-1]);
+          const lyq = ly[j-1] + t*(ly[j]-ly[j-1]);
+          denseX.push(10**q); denseY.push(10**lyq);
+        }
+        return {denseX, denseY};
       }
-      return {denseX, denseY};
     }
 
     function nearestIndex(arr, x){
@@ -203,8 +230,23 @@
       return v.toExponential(2);
     }
 
+    // map pixel to data-x respecting axis type (log or linear)
+    function pixelToDataX(gd, px){
+      const xax = gd._fullLayout.xaxis;
+      const x0 = xax._offset, xw = xax._length;
+      const rx = (px - x0) / xw;
+      if (xax.type === 'log') {
+        const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
+        return Math.pow(10, lx);
+      } else {
+        // linear
+        return xax.range[0] + rx * (xax.range[1] - xax.range[0]);
+      }
+    }
+
     // ----------- core: build one chart with shared behavior -----------
-    function buildChart(containerId, title, getCurve, cacheKey){
+    function buildChart(opts){
+      const {containerId, title, getCurve, cacheKey, axisTypes, axisLabels, fixedYRange, xTransform, tooltip} = opts;
       const container = document.getElementById(containerId);
 
       function plotCurve(){
@@ -215,9 +257,24 @@
           denseCache[cacheKey] = {X:[],Y:[]};
           return;
         }
-        const {X, Y} = result;
+
+        // optional x transform (e.g., Ib -> % and cap @ 100)
+        let X = result.X.slice();
+        let Y = result.Y.slice();
+        if (xTransform) {
+          const X2 = [];
+          const Y2 = [];
+          for (let i=0;i<X.length;i++){
+            const tx = xTransform(X[i]);
+            if (tx == null) continue;
+            X2.push(tx); Y2.push(Y[i]);
+          }
+          X = X2; Y = Y2;
+        }
+
         const samples = Number(document.getElementById('smoothPoints').value) || 500;
-        const {denseX, denseY} = interpolateLogLog(X, Y, samples);
+        const mode = (axisTypes.x === 'log' && axisTypes.y === 'log') ? 'log' : 'linear';
+        const {denseX, denseY} = interpolateSeries(X, Y, samples, mode);
         denseCache[cacheKey] = {X:denseX, Y:denseY};
 
         const xMin = Math.min(...X), xMax = Math.max(...X);
@@ -235,15 +292,37 @@
           hovermode:'closest',
           dragmode:'pan',
           uirevision:title(), // keep zoom on update
-          xaxis:{ type:'log', title:result.xlabel || 'Current (A)',
-                  range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9' },
-          yaxis:{ type:'log', title:result.ylabel || 'Time (s)',
-                  range:[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05], gridcolor:'#f1f5f9' },
+          xaxis:{
+            type: axisTypes.x, title: axisLabels.x,
+            range: axisTypes.x === 'log'
+              ? [Math.log10(xMin)-0.05, Math.log10(xMax)+0.05]
+              : [xMin, xMax],
+            gridcolor:'#f1f5f9'
+          },
+          yaxis:{
+            type: axisTypes.y, title: axisLabels.y,
+            range: fixedYRange
+              ? fixedYRange
+              : (axisTypes.y === 'log'
+                 ? [Math.log10(yMin)-0.05, Math.log10(yMax)+0.05]
+                 : [yMin, yMax]),
+            gridcolor:'#f1f5f9'
+          },
           margin:{l:60,r:10,t:34,b:48}
         };
 
+        // Special tweak: Watts Loss y-min forced to 0.1 (linear)
+        if (cacheKey === 'watts') {
+          const ymax = Math.max(...Y);
+          layout.yaxis.range = [0.1, Math.max(0.11, ymax * 1.05)];
+        }
+        // Arc Voltage fixed [300,3000]
+        if (cacheKey === 'arc') {
+          layout.yaxis.range = [300, 3000];
+        }
+
         Plotly.newPlot(containerId, [traceDense, traceRaw, traceCursor], layout, PLOT_CONFIG)
-        .then(gd => attachAlwaysOnTooltip(gd, cacheKey));
+        .then(gd => attachAlwaysOnTooltip(gd, cacheKey, tooltip, axisTypes));
       }
 
       plotCurve();
@@ -251,8 +330,8 @@
     }
 
     // ----------- always-visible tooltip + curve-snapped cursor ----------
-    function attachAlwaysOnTooltip(gd, cacheKey){
-      const host = gd; // inner graph div
+    function attachAlwaysOnTooltip(gd, cacheKey, tooltipFormatter, axisTypes){
+      const host = gd;
       let raf = null;
       let lastEvt = null;
 
@@ -285,14 +364,14 @@
           return;
         }
 
-        lastEvt = { clientX:e.clientX, clientY:e.clientY, px, x0, xw, xax };
+        lastEvt = { clientX:e.clientX, clientY:e.clientY, px };
         if (raf) return;
 
         raf = requestAnimationFrame(()=>{
-          const { clientX, clientY, px, x0, xw, xax } = lastEvt;
-          const rx = (px - x0) / xw;
-          const lx = xax.range[0] + rx * (xax.range[1] - xax.range[0]);
-          const x  = Math.pow(10, lx);
+          const { clientX, clientY, px } = lastEvt;
+
+          // pixel -> data x (handles log or linear)
+          const x = pixelToDataX(gd, px);
 
           const dense = denseCache[cacheKey] || {X:[],Y:[]};
           if(!dense.X.length){ tooltip.style.display='none'; raf=null; return; }
@@ -303,7 +382,7 @@
 
           Plotly.restyle(gd, { x: [[cx]], y: [[cy]] }, [CURSOR_TRACE_INDEX]);
 
-          tooltip.textContent = `Current: ${fmtNumber(cx)}  |  Time: ${fmtTime(cy)}`;
+          tooltip.textContent = tooltipFormatter(cx, cy);
           tooltip.style.display = 'block';
           tooltip.style.left = (clientX + 14) + 'px';
           tooltip.style.top  = (clientY - 18) + 'px';
@@ -390,7 +469,7 @@
       if(!key) return null;
       const curve = famObj[key];
       const {X,Y} = prepSeries(curve.current, curve.time);
-      return {X,Y, xlabel:'Current (A)', ylabel:'Time (s)', title:`${selectedFuse.part} — ${fam} — ${selectedFuse.I}A @ ${selectedFuse.V}V`};
+      return {X,Y};
     }
     function getWattsCurve(){
       if(!selectedFuse) return null;
@@ -398,8 +477,8 @@
       const famObj = wattsData[fam] || {};
       const curve = famObj["all"];
       if(!curve) return null;
-      const {X,Y} = prepSeries(curve.current, curve.time); // current=Ib, time=Kp
-      return {X,Y, xlabel:'Ib', ylabel:'Kp', title:`Watts Loss — ${fam}`};
+      const {X,Y} = prepSeries(curve.current, curve.time); // Ib (0..1), Kp
+      return {X,Y};
     }
     function getArcCurve(){
       if(!selectedFuse) return null;
@@ -407,8 +486,8 @@
       const famObj = arcData[fam] || {};
       const curve = famObj["all"];
       if(!curve) return null;
-      const {X,Y} = prepSeries(curve.current, curve.time);
-      return {X,Y, xlabel:'X', ylabel:'Y', title:`Arc Voltage — ${fam}`};
+      const {X,Y} = prepSeries(curve.current, curve.time); // generic X,Y
+      return {X,Y};
     }
     function getCutCurve(){
       if(!selectedFuse) return null;
@@ -418,17 +497,66 @@
       const curve = famObj[key];
       if(!curve) return null;
       const {X,Y} = prepSeries(curve.current, curve.time); // prospective vs let-through
-      return {X,Y, xlabel:'Prospective current', ylabel:'Peak let-through', title:`Cut-off — ${fam} — ${key}`};
+      return {X,Y};
     }
 
     // ----------- build all charts -----------
     let chartTcc, chartWatts, chartArc, chartCut;
 
     function buildAll(){
-      chartTcc   = buildChart('chart-tcc',   ()=> selectedFuse ? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getTccCurve,   'tcc');
-      chartWatts = buildChart('chart-watts', ()=> selectedFuse ? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getWattsCurve, 'watts');
-      chartArc   = buildChart('chart-arc',   ()=> selectedFuse ? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getArcCurve,   'arc');
-      chartCut   = buildChart('chart-cutoff',()=> selectedFuse ? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCutCurve, 'cut');
+      chartTcc   = buildChart({
+        containerId: 'chart-tcc',
+        title: ()=> selectedFuse ? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve',
+        getCurve: getTccCurve,
+        cacheKey: 'tcc',
+        axisTypes: {x:'log', y:'log'},
+        axisLabels:{x:'Current (A)', y:'Time (s)'},
+        fixedYRange: null,
+        xTransform: null,
+        tooltip: tooltipFmt.tcc
+      });
+
+      chartWatts = buildChart({
+        containerId: 'chart-watts',
+        title: ()=> selectedFuse ? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss',
+        getCurve: getWattsCurve,
+        cacheKey: 'watts',
+        axisTypes: {x:'linear', y:'linear'},
+        axisLabels:{x:'Load Current (%)', y:'Kp'},
+        fixedYRange: null,
+        // Convert Ib (0..1+) -> percent, cap at 100%
+        xTransform: (x)=> {
+          if (!isFinite(x)) return null;
+          const pct = Math.min(x*100, 100);
+          if (pct < 0) return null;
+          return pct;
+        },
+        tooltip: tooltipFmt.watts
+      });
+
+      chartArc   = buildChart({
+        containerId: 'chart-arc',
+        title: ()=> selectedFuse ? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage',
+        getCurve: getArcCurve,
+        cacheKey: 'arc',
+        axisTypes: {x:'linear', y:'linear'},
+        axisLabels:{x:'Eg', y:'Ul (V)'},
+        fixedYRange: [300, 3000], // fixed per your requirement
+        xTransform: null,
+        tooltip: tooltipFmt.arc
+      });
+
+      chartCut   = buildChart({
+        containerId: 'chart-cutoff',
+        title: ()=> selectedFuse ? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve',
+        getCurve: getCutCurve,
+        cacheKey: 'cut',
+        axisTypes: {x:'log', y:'log'},
+        axisLabels:{x:'Prospective current', y:'Peak let-through'},
+        fixedYRange: null,
+        xTransform: null,
+        tooltip: tooltipFmt.cut
+      });
     }
 
     function refreshAll(){
@@ -445,7 +573,6 @@
       document.getElementById('voltageInput').value='';
       document.getElementById('fuseListContainer').style.display='none';
       selectedFuse = null; setBadges(null); showError('');
-      // Clear charts
       ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id => { Plotly.purge(id); document.getElementById(id).innerHTML=''; });
     });
     document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
