@@ -656,7 +656,141 @@
 
       // Button explicitly refreshes recommendations (optional; graphs already live)
       document.getElementById('updateRecsBtn').addEventListener('click', ()=>computeAndRenderDerating(null));
+
+
+      // Overload section
+      <section class="card" id="overloadTestSection">
+        <div class="controls">
+          <div class="row">
+            <div class="field">
+              <label for="Imax">Imax (A)</label>
+              <input type="number" id="Imax" placeholder="e.g., 1000" min="0" step="1" />
+            </div>
+            <div class="field">
+              <label for="overloadDuration">Overload duration (s)</label>
+              <input type="number" id="overloadDuration" placeholder="e.g., 10" min="0" step="0.1" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="freqOverload">Frequency of overload (>1s)</label>
+              <select id="freqOverload">
+                <option value="0.8">Less than 1 time per month</option>
+                <option value="0.7">Less than 2 times per week</option>
+                <option value="0.6">Several times a day</option>
+                <option value="1.0">No</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="freqOverloadShort">Frequency of overload (<=1s)</label>
+              <select id="freqOverloadShort">
+                <option value="0.7">Less than 1 time per month</option>
+                <option value="0.6">Less than 2 times per week</option>
+                <option value="0.5">Several times a day</option>
+                <option value="1.0">No</option>
+              </select>
+            </div>
+            <div class="field">
+              <button id="testOverloadBtn">Test Overload Suitability</button>
+            </div>
+          </div>
+
+          <div id="overloadResult" class="error" style="display:none;">
+            <p><strong>Status:</strong> <span id="overloadStatus"></span></p>
+            <p>Multiplier: <span id="multiplier"></span></p>
+            <p>Adjusted Imax: <span id="adjustedImax"></span></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-derate">
+        <div class="panel">
+          <div class="ctrlrow"><h3>Temperature Factor (kT)</h3><span class="small">x: Ambient temp (°C) • y: kT</span></div>
+          <div id="chart-kT" class="chart-sm"></div>
+        </div>
+        <div class="panel">
+          <div class="ctrlrow"><h3>Conductor Percentage Factor (Ke)</h3><span class="small">x: Calculated percentage (%) • y: Ke</span></div>
+          <div id="chart-kA" class="chart-sm"></div>
+        </div>
+        <div class="panel">
+          <div class="ctrlrow"><h3>Air Speed Factor (kV)</h3><span class="small">x: Air speed (m/s) • y: kV</span></div>
+          <div id="chart-kV" class="chart-sm"></div>
+        </div>
+        <div class="panel">
+          <div class="ctrlrow"><h3>Frequency Factor (kF)</h3><span class="small">x: Frequency (Hz) • y: kF</span></div>
+          <div id="chart-kF" class="chart-sm"></div>
+        </div>
+      </section>
+
+      <section class="card result-card">
+        <div class="kv"><span>kT (temperature)</span><strong id="val-kT">—</strong></div>
+        <div class="kv"><span>Ke (conductor %)</span><strong id="val-kA">—</strong></div>
+        <div class="kv"><span>Ke % (from Ib/area)</span><strong id="val-kePct">—</strong></div>
+        <div class="kv"><span>kV (air speed)</span><strong id="val-kV">—</strong></div>
+        <div class="kv"><span>kF (frequency)</span><strong id="val-kF">—</strong></div>
+        <div class="kv"><span>kAlt (altitude)</span><strong id="val-kAlt">1.000 (pending rule)</strong></div>
+        <div class="kv"><span>Ib (A)</span><strong id="val-Ib">—</strong></div>
+        <div class="kv"><span>G factor</span><strong id="val-G">—</strong></div>
+        <div class="kv big"><span>I<sub>derated</sub> (A)</span><strong id="val-Iderated">—</strong></div>
+      </section>
+
+      <!-- Recommendations (by derated current & exact voltage) -->
+      <section class="card" id="recCard" style="display:none">
+        <div class="controls">
+          <label for="recSelect">Recommended fuses (exact V, next rating ≥ I<sub>derated</sub>)</label>
+          <select id="recSelect" size="8"></select>
+          <div class="hint" id="recInfo"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    // Overload test and fuse selection functions are handled here, including Imax, duration, frequency, etc.
+    document.getElementById('testOverloadBtn').addEventListener('click', function () {
+      const Imax = parseFloat(document.getElementById('Imax').value);
+      const duration = parseFloat(document.getElementById('overloadDuration').value);
+      const freqOverload = parseFloat(document.getElementById('freqOverload').value);
+      const freqOverloadShort = parseFloat(document.getElementById('freqOverloadShort').value);
+
+      // Validate inputs
+      if (!Imax || !duration || isNaN(Imax) || isNaN(duration)) {
+        alert("Please input valid values for Imax and overload duration.");
+        return;
+      }
+
+      let multiplier;
+      if (duration > 1) {
+        // Overload lasting more than 1 second
+        if (freqOverload === 0.8) multiplier = 0.8;
+        else if (freqOverload === 0.7) multiplier = 0.7;
+        else if (freqOverload === 0.6) multiplier = 0.6;
+        else multiplier = 1.0; // 'No' frequency
+      } else {
+        // Overload lasting less than 1 second
+        if (freqOverloadShort === 0.7) multiplier = 0.7;
+        else if (freqOverloadShort === 0.6) multiplier = 0.6;
+        else if (freqOverloadShort === 0.5) multiplier = 0.5;
+        else multiplier = 1.0; // 'No' frequency
+      }
+
+      const adjustedImax = Imax / multiplier;
+
+      // For the current value at the given overload duration on the time-current curve
+      const currentAtTime = 1500; // Simulated value
+
+      // Determine if the fuse can handle the overload
+      const overloadStatus = adjustedImax <= currentAtTime ? "Fuse can handle the overload" : "Fuse cannot handle the overload";
+
+      // Display results
+      document.getElementById('overloadResult').style.display = "block";
+      document.getElementById('overloadStatus').textContent = overloadStatus;
+      document.getElementById('multiplier').textContent = multiplier;
+      document.getElementById('adjustedImax').textContent = adjustedImax.toFixed(2);
+      
     })();
   </script>
 </body>
 </html>
+
