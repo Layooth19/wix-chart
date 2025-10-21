@@ -29,7 +29,7 @@
     .controls{ display:grid; gap:10px; min-width:0 }
     .row{ display:flex; gap:10px; flex-wrap:wrap; min-width:0 }
     .field{ flex:1 1 220px; min-width:0 }
-    label{ font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:6px }
+    label{ font-size:12px; font-weight:600; color:#6b7280; display:block; margin-bottom:6px }
     input,select{ width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; font-size:14px; outline:none; min-width:0; max-width:100% }
     input:focus,select:focus{ box-shadow:0 0 0 3px var(--ring); border-color:#bfdbfe }
     button{ background:var(--brand); color:#fff; border:0; padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer }
@@ -485,13 +485,11 @@
     }
 
     // ---------- DERATING ----------
-    // G options 1.0 → 2.0 step 0.1
     const gSel = document.getElementById('gFactor');
     (function fillG(){ for(let g=1.0; g<=2.0001; g+=0.1){ const opt=document.createElement('option'); opt.value=g.toFixed(1); opt.textContent=g.toFixed(1); gSel.appendChild(opt);} })();
 
     function pickPairs(table, family){ if(!table) return null; if(family && table[family]) return table[family]; const keys=Object.keys(table); return keys.length? table[keys[0]] : null; }
 
-    // Small factor chart (linear axes) with optional fixed X range
     function buildFactorChart(containerId, title, axisLabels, fixedXRange=null){
       const container=document.getElementById(containerId);
       function plot(pairs, xCurrent){
@@ -506,7 +504,6 @@
           else if(j>=X.length){dX.push(X.at(-1)); dY.push(Y.at(-1));}
           else {const t=(xq-X[j-1])/(X[j]-X[j-1]); dX.push(xq); dY.push(Y[j-1]+t*(Y[j]-Y[j-1]));}
         }
-        // cursor position (nearest)
         const idx=(()=>{
           if(xCurrent==null) return 0;
           let lo=0, hi=dX.length-1; if(xCurrent<=dX[0]) return 0; if(xCurrent>=dX[hi]) return hi;
@@ -780,9 +777,6 @@
       const adjLong  = (Number.isFinite(imax) && Number.isFinite(multLong)  && multLong>0)  ? (imax / multLong)   : NaN;
       const adjShort = (Number.isFinite(imax) && Number.isFinite(multShort) && multShort>0) ? (imax / multShort)  : NaN;
 
-      const applicableAdj = (Number.isFinite(dur) && dur>1) ? adjLong : adjShort;
-      const applicableMult= (Number.isFinite(dur) && dur>1) ? multLong : multShort;
-
       const Icurve = (Number.isFinite(dur) && dur>0) ? currentAtTimeFromTcc(tcc.X, tcc.Y, dur) : NaN;
 
       const samples = Number(document.getElementById('smoothPoints')?.value) || 500;
@@ -790,18 +784,20 @@
       const traceDense = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'Interpolated', line:{width:2, dash:'dot'}, hoverinfo:'skip' };
       const traceRaw   = { x:tcc.X,  y:tcc.Y,  mode:'lines+markers', type:'scatter', name:'Raw', line:{width:2}, marker:{size:6} };
 
-      // Curve point (bold green)
       const dotCurve = (Number.isFinite(Icurve) && Number.isFinite(dur))
         ? { x:[Icurve], y:[dur], mode:'markers+text', type:'scatter', name:'Curve point',
             marker:{size:14, symbol:'circle', line:{width:2}, color:'green'},
             text:[`I=${pretty(Icurve)} A<br>t=${prettyTime(dur)} s`], textposition:'top center', hoverinfo:'skip' }
         : { x:[], y:[], type:'scatter', mode:'markers', name:'Curve point', visible:false };
 
-      // Only plot the applicable adjusted point as an "X"
-      const dotAdjusted = (Number.isFinite(applicableAdj) && Number.isFinite(dur))
-        ? { x:[applicableAdj], y:[dur], mode:'markers', type:'scatter', name:'Imax / multiplier (applicable)',
+      // Keep one "X" marker for the duration entered (use the more conservative of the two adjusted currents for display)
+      const displayAdj = (Number.isFinite(adjLong) && Number.isFinite(adjShort)) ? Math.max(adjLong, adjShort)
+                        : (Number.isFinite(adjLong) ? adjLong
+                        : (Number.isFinite(adjShort) ? adjShort : NaN));
+      const dotAdjusted = (Number.isFinite(displayAdj) && Number.isFinite(dur))
+        ? { x:[displayAdj], y:[dur], mode:'markers', type:'scatter', name:'Max(Imax/mult)',
             marker:{size:12, symbol:'x', line:{width:2}}, hoverinfo:'skip' }
-        : { x:[], y:[], type:'scatter', mode:'markers', name:'Imax / multiplier (applicable)', visible:false };
+        : { x:[], y:[], type:'scatter', mode:'markers', name:'Max(Imax/mult)', visible:false };
 
       const xMin=Math.min(...tcc.X), xMax=Math.max(...tcc.X);
       const yMin=Math.min(...tcc.Y), yMax=Math.max(...tcc.Y);
@@ -824,9 +820,12 @@
       document.getElementById('olAdjShort').textContent   = Number.isFinite(adjShort)  ? fmt(adjShort,3)      : '—';
       document.getElementById('olCurveI').textContent     = Number.isFinite(Icurve)    ? fmt(Icurve,3)        : '—';
 
-      let resultText = '—';
-      if(Number.isFinite(applicableAdj) && Number.isFinite(Icurve)){
-        resultText = applicableAdj <= Icurve ? 'Able to support overload ✓' : 'Not able to support overload ✗';
+      // NEW STATUS RULE: curve current must be > both adjusted currents
+      let resultText = 'Not able to support load ✗';
+      if (Number.isFinite(Icurve) && Number.isFinite(adjLong) && Number.isFinite(adjShort)) {
+        if (Icurve > adjLong && Icurve > adjShort) {
+          resultText = 'Able to support overload ✓';
+        }
       }
       document.getElementById('olResult').textContent = resultText;
     }
