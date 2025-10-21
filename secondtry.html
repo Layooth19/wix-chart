@@ -169,7 +169,6 @@
             </div>
           </div>
 
-          <!-- Removed the "fuses matching input current & voltage" list here -->
           <div class="error" id="errorMsgDerate"></div>
         </div>
       </section>
@@ -205,7 +204,7 @@
         <div class="kv big"><span>I<sub>derated</sub> (A)</span><strong id="val-Iderated">—</strong></div>
       </section>
 
-      <!-- Recommendations (by derated current & exact voltage) -->
+      <!-- Recommendations (by derated current & exact V) -->
       <section class="card" id="recCard" style="display:none">
         <div class="controls">
           <label for="recSelect">Recommended fuses (exact V, next rating ≥ I<sub>derated</sub>)</label>
@@ -280,7 +279,7 @@
     const cutUrl    = 'cutoff_restructured.json';
     // Derating factor JSONs (sheetName -> [{x, y}])
     const tempJsonUrl = 'temperature_k_factor.json';
-    const areaJsonUrl = 'percentage_ke_factor.json'; // x = % (50..100), y = Ke
+    const areaJsonUrl = 'percentage_ke_factor.json';
     const freqJsonUrl = 'frequency_kf_data.json';
     const airJsonUrl  = 'air_speed_kv_data.json';
 
@@ -290,7 +289,7 @@
     // ---------------- shared data ----------------
     let partsData=[], partsIdxByKey=new Map();
     let tccData={}, wattsData={}, arcData={}, cutData={};
-    let selectedFuse=null; // global selection for Curves tab
+    let selectedFuse=null;
 
     // Derating tables
     let tempTable={}, areaTable={}, freqTable={}, airTable={};
@@ -304,8 +303,8 @@
     // -------- utilities --------
     async function loadJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error(`Failed to load ${url}`); return r.json(); }
     function fmt(n,d=3){ return Number(n).toFixed(d); }
-    function normalizeRatingKey(I){ const base=\`\${I}A\`; return [base, \`\${base}*\`, \`\${I} A\`]; }
-    function formatOption(p){ return \`\${p.part}  —  \${p.family}  •  \${p.I}A  •  \${p.V}V\`; }
+    function normalizeRatingKey(I){ const base=`${I}A`; return [base, `${base}*`, `${I} A`]; }
+    function formatOption(p){ return `${p.part}  —  ${p.family}  •  ${p.I}A  •  ${p.V}V`; }
 
     function linInterp(pairs, x){
       if(!pairs || !pairs.length) return NaN;
@@ -418,14 +417,14 @@
     function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
     function getWattsCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(wattsData[fam]||{})["all"]; if(!c)return null; const s=prepSeries(c.current,c.time); return {X:s.X.map(v=>Math.min(v*100,100)), Y:s.Y}; }
     function getArcCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(arcData[fam]||{})["all"]; if(!c)return null; return prepSeries(c.current,c.time); }
-    function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=\`\${selectedFuse.I}A\`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
+    function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=`${selectedFuse.I}A`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
 
     // Tooltips
     const tooltipFmt = {
-      tcc:  (x,y)=> \`Current: \${pretty(x)} A  |  Time: \${prettyTime(y)} s\`,
-      watts:(x,y)=> \`Load current: \${x.toFixed(0)}%  |  Kp: \${y.toFixed(3)}\`,
-      arc:  (x,y)=> \`Eg: \${pretty(x)}  |  Ul: \${y.toFixed(0)} V\`,
-      cut:  (x,y)=> \`Prospective: \${pretty(x)} A  |  Let-through: \${pretty(y)} A\`,
+      tcc:  (x,y)=> `Current: ${pretty(x)} A  |  Time: ${prettyTime(y)} s`,
+      watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
+      arc:  (x,y)=> `Eg: ${pretty(x)}  |  Ul: ${y.toFixed(0)} V`,
+      cut:  (x,y)=> `Prospective: ${pretty(x)} A  |  Let-through: ${pretty(y)} A`,
     };
     function pretty(v){ if(v>=1000) return v.toFixed(0); if(v>=100) return v.toFixed(1); if(v>=10) return v.toFixed(2); if(v>=1) return v.toFixed(3); return v.toExponential(2); }
     function prettyTime(v){ return v>=1? v.toFixed(3) : v.toExponential(2); }
@@ -433,10 +432,10 @@
     // Build & refresh curves charts
     let chartTcc, chartWatts, chartArc, chartCut;
     function buildCurvesCharts(){
-      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? \`\${selectedFuse.part} — \${selectedFuse.family} — \${selectedFuse.I}A @ \${selectedFuse.V}V\` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
-      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? \`Watts Loss — \${selectedFuse.family}\` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts });
-      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? \`Arc Voltage — \${selectedFuse.family}\` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc });
-      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? \`Cut-off — \${selectedFuse.family} — \${selectedFuse.I}A\` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut });
+      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
+      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts });
+      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc });
+      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut });
     }
     function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); }
 
@@ -448,10 +447,10 @@
       err.textContent=''; sel.innerHTML='';
       if(!Number.isFinite(I)||!Number.isFinite(V)){ err.textContent='Please enter valid numeric current and voltage.'; cont.style.display='none'; return; }
       const matches=partsData.filter(p=>p.I===I && p.V===V).sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
-      if(!matches.length){ err.textContent=\`No fuses found with \${I}A and exactly \${V}V.\`; cont.style.display='none'; return; }
+      if(!matches.length){ err.textContent=`No fuses found with ${I}A and exactly ${V}V.`; cont.style.display='none'; return; }
       const frag=document.createDocumentFragment(); for(const p of matches){ const o=document.createElement('option'); o.value=p.part; o.textContent=formatOption(p); frag.appendChild(o); }
       sel.appendChild(frag); cont.style.display='block';
-      document.getElementById('infoText').textContent = \`Found \${matches.length} matching fuse\${matches.length>1?'s':''}. Select one to plot.\`;
+      document.getElementById('infoText').textContent = `Found ${matches.length} matching fuse${matches.length>1?'s':''}. Select one to plot.`;
       sel.selectedIndex=0; onFuseSelected();
     }
     function onFuseSelected(){
@@ -459,21 +458,18 @@
       selectedFuse=partsData[idx];
       document.getElementById('badgePart').textContent=selectedFuse.part;
       document.getElementById('badgeFamily').textContent=selectedFuse.family;
-      document.getElementById('badgeRating').textContent=\`\${selectedFuse.I}A\`;
-      document.getElementById('badgeVoltage').textContent=\`\${selectedFuse.V}V\`;
+      document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
+      document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
       refreshCurvesCharts();
-      // also refresh overload panel chart because it depends on selected fuse
       drawOverloadChart();
     }
 
     // ---------- DERATING ----------
-    // G options 1.0 → 2.0 step 0.1
     const gSel = document.getElementById('gFactor');
     (function fillG(){ for(let g=1.0; g<=2.0001; g+=0.1){ const opt=document.createElement('option'); opt.value=g.toFixed(1); opt.textContent=g.toFixed(1); gSel.appendChild(opt);} })();
 
     function pickPairs(table, family){ if(!table) return null; if(family && table[family]) return table[family]; const keys=Object.keys(table); return keys.length? table[keys[0]] : null; }
 
-    // Small factor chart (linear axes) with optional fixed X range
     function buildFactorChart(containerId, title, axisLabels, fixedXRange=null){
       const container=document.getElementById(containerId);
       function plot(pairs, xCurrent){
@@ -488,7 +484,6 @@
           else if(j>=X.length){dX.push(X.at(-1)); dY.push(Y.at(-1));}
           else {const t=(xq-X[j-1])/(X[j]-X[j-1]); dX.push(xq); dY.push(Y[j-1]+t*(Y[j]-Y[j-1]));}
         }
-        // cursor position (nearest)
         const idx=(()=>{
           if(xCurrent==null) return 0;
           let lo=0, hi=dX.length-1; if(xCurrent<=dX[0]) return 0; if(xCurrent>=dX[hi]) return hi;
@@ -511,26 +506,23 @@
     }
 
     const chart_kT = buildFactorChart('chart-kT', 'Temperature Factor (kT)', {x:'Ambient temp (°C)', y:'kT'});
-    // Ke (%): fix x-range to [50, 100]
     const chart_kA = buildFactorChart('chart-kA', 'Conductor Percentage Factor (Ke)', {x:'Calculated percentage (%)', y:'Ke'}, [50, 100]);
     const chart_kV = buildFactorChart('chart-kV', 'Air Speed Factor (kV)', {x:'Air speed (m/s)', y:'kV'});
     const chart_kF = buildFactorChart('chart-kF', 'Frequency Factor (kF)', {x:'Frequency (Hz)', y:'kF'});
 
-    // Ke percentage from current density (your corrected formula)
     function computeKePercentage(Ib, areaMm2){
       if (!Number.isFinite(Ib) || !Number.isFinite(areaMm2) || areaMm2 <= 0) return NaN;
-      const J = Ib / areaMm2;                   // A/mm²
-      const pctRaw = (1 - (J - 1.3) / J) * 100; // == (1.3/J)*100
+      const J = Ib / areaMm2;
+      const pctRaw = (1 - (J - 1.3) / J) * 100;
       if (!Number.isFinite(pctRaw)) return NaN;
-      return Math.max(50, Math.min(100, pctRaw)); // clamp to [50, 100]
+      return Math.max(50, Math.min(100, pctRaw));
     }
 
     function getAltitudeFactor(altMeters){
-      // TODO: Replace with your altitude derating logic
       return 1.0;
     }
 
-    // ----- Recommendations (by I_derated & exact V) -----
+    // ----- Recommendations -----
     function updateRecommendations(voltageExact, Iderated){
       const recCard = document.getElementById('recCard');
       const recSel  = document.getElementById('recSelect');
@@ -553,7 +545,7 @@
       const target = ratings.find(r => r >= Iderated);
 
       if (target === undefined){
-        recInfo.textContent = \`No fuse rating ≥ \${fmt(Iderated,3)} A at \${voltageExact} V.\`;
+        recInfo.textContent = `No fuse rating ≥ ${fmt(Iderated,3)} A at ${voltageExact} V.`;
         recCard.style.display='block';
         return;
       }
@@ -562,7 +554,7 @@
                       .sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
 
       if(!recs.length){
-        recInfo.textContent = \`No parts at \${target} A found at \${voltageExact} V.\`;
+        recInfo.textContent = `No parts at ${target} A found at ${voltageExact} V.`;
         recCard.style.display='block';
         return;
       }
@@ -576,14 +568,13 @@
       }
       recSel.appendChild(frag);
       recCard.style.display='block';
-      recInfo.textContent = \`Recommended rating: \${target} A (Iₙext ≥ I_derated = \${fmt(Iderated,3)} A) at \${voltageExact} V.\`;
+      recInfo.textContent = `Recommended rating: ${target} A (Iₙext ≥ I_derated = ${fmt(Iderated,3)} A) at ${voltageExact} V.`;
       recSel.selectedIndex = 0;
       applyBtn.disabled = false;
     }
 
-    // Compute + render derating (no fuse required)
+    // Compute + render derating
     function computeAndRenderDerating(optionalFuse){
-      // If a fuse is provided (e.g., selected in recommendations), use its family; else use generic (first table)
       const fam = optionalFuse ? optionalFuse.family : (selectedFuse ? selectedFuse.family : null);
       const Ib  = Number(document.getElementById('currentInputDerate').value);
       const G   = Number(document.getElementById('gFactor').value || 1.0);
@@ -594,10 +585,10 @@
       const f = Number(document.getElementById('freqInput').value);
       const h = Number(document.getElementById('altInput').value);
 
-      const tempPairs = pickPairs(tempTable, fam);   // x: °C  → kT
-      const kePairs   = pickPairs(areaTable, fam);   // x: %   → Ke
-      const airPairs  = pickPairs(airTable, fam);    // x: m/s → kV
-      const freqPairs = pickPairs(freqTable, fam);   // x: Hz  → kF
+      const tempPairs = pickPairs(tempTable, fam);
+      const kePairs   = pickPairs(areaTable, fam);
+      const airPairs  = pickPairs(airTable, fam);
+      const freqPairs = pickPairs(freqTable, fam);
 
       const kT   = Number.isFinite(t) && tempPairs ? linInterp(tempPairs, t) : NaN;
       const kePct = (Number.isFinite(Ib) && Number.isFinite(a)) ? computeKePercentage(Ib, a) : NaN;
@@ -606,16 +597,14 @@
       const kF   = Number.isFinite(f) && freqPairs ? linInterp(freqPairs, f) : NaN;
       const kAlt = Number.isFinite(h) ? getAltitudeFactor(h) : 1.0;
 
-      // Update factor charts (always visible)
       chart_kT.plot(tempPairs, Number.isFinite(t)?t:null);
       chart_kA.plot(kePairs, Number.isFinite(kePct)? kePct : null);
       chart_kV.plot(airPairs,  Number.isFinite(v)?v:null);
       chart_kF.plot(freqPairs, Number.isFinite(f)?f:null);
 
-      // Results panel
       document.getElementById('val-kT').textContent   = isFinite(kT)?  fmt(kT,3): '—';
       document.getElementById('val-kA').textContent   = isFinite(kA)?  fmt(kA,3): '—';
-      document.getElementById('val-kePct').textContent= isFinite(kePct)? \`\${kePct.toFixed(1)} %\` : '—';
+      document.getElementById('val-kePct').textContent= isFinite(kePct)? `${kePct.toFixed(1)} %` : '—';
       document.getElementById('val-kV').textContent   = isFinite(kV)?  fmt(kV,3): '—';
       document.getElementById('val-kF').textContent   = isFinite(kF)?  fmt(kF,3): '—';
       document.getElementById('val-kAlt').textContent = fmt(kAlt,3);
@@ -627,11 +616,9 @@
       const Iderated = isFinite(denom) ? (Ib * G) / denom : NaN;
       document.getElementById('val-Iderated').textContent = isFinite(Iderated)? fmt(Iderated,3) : '—';
 
-      // Update recommendations live
       const Vexact = Number(document.getElementById('voltageInputDerate').value);
       updateRecommendations(Vexact, Iderated);
 
-      // Keep overload chart up-to-date with current selection
       drawOverloadChart();
     }
 
@@ -644,21 +631,17 @@
       if(idx === undefined) return;
 
       selectedFuse = partsData[idx];
-      // update badges
       document.getElementById('badgePart').textContent=selectedFuse.part;
       document.getElementById('badgeFamily').textContent=selectedFuse.family;
-      document.getElementById('badgeRating').textContent=\`\${selectedFuse.I}A\`;
-      document.getElementById('badgeVoltage').textContent=\`\${selectedFuse.V}V\`;
+      document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
+      document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
       refreshCurvesCharts();
 
-      // switch to Curves tab
       activateTab('curves');
-
-      // also refresh overload
       drawOverloadChart();
     });
 
-    // Recommendations change: recalc derating using that fuse's family (for factor tables)
+    // Recommendations change
     document.getElementById('recSelect').addEventListener('change', (e)=>{
       const part = e.target.value;
       const idx = partsIdxByKey.get(part);
@@ -684,38 +667,27 @@
 
     // ==================== INFLUENCE OF OVERLOADS LOGIC (ADDED) ====================
     function getMultiplier(duration, longValStr, shortValStr){
-      // duration in seconds; use long (>=1s) or short (<1s)
       const longVal = parseFloat(longValStr);
       const shortVal = parseFloat(shortValStr);
       if(!Number.isFinite(duration)) return 1.0;
-      if(duration >= 1) {
-        // Mapping per spec: options already provide numeric factors (0.8, 0.7, 0.6, 1.0)
-        return longVal || 1.0;
-      } else {
-        return shortVal || 1.0;
-      }
+      return duration >= 1 ? (longVal || 1.0) : (shortVal || 1.0);
     }
 
     // Find CURRENT at a given TIME on the TCC via log–log interpolation (Y is time, X is current)
     function currentAtTimeFromTcc(X, Y, tTarget){
       if(!X || !Y || X.length<2 || !Number.isFinite(tTarget) || tTarget<=0) return NaN;
-      // Ensure both arrays are sorted by X ascending (they are), Y usually decreases with X
-      // Work in log space for both axes
       const lx = X.map(v => Math.log10(v));
       const ly = Y.map(v => Math.log10(v));
       const ty = Math.log10(tTarget);
 
-      // Binary search for segment where time crosses ty
-      // Since ly is typically decreasing, find indices j-1 and j such that ly[j-1] >= ty >= ly[j] OR vice versa
       let j = -1;
       for(let i=1;i<ly.length;i++){
         const y1=ly[i-1], y2=ly[i];
         if((y1>=ty && ty>=y2) || (y1<=ty && ty<=y2)){ j=i; break; }
       }
       if(j===-1){
-        // Clamp to ends
-        if(ty >= ly[0]) return 10**lx[0];                // beyond left (longer time than first)
-        if(ty <= ly[ly.length-1]) return 10**lx[lx.length-1]; // beyond right (shorter time than last)
+        if(ty >= ly[0]) return 10**lx[0];
+        if(ty <= ly[ly.length-1]) return 10**lx[lx.length-1];
         return NaN;
       }
       const t = (ty - ly[j-1]) / (ly[j]-ly[j-1]);
@@ -743,10 +715,8 @@
         return;
       }
 
-      // Build a dense curve (log–log)
       const {denseX, denseY} = interpolateSeries(tcc.X, tcc.Y, 600, 'log');
 
-      // Read overload inputs
       const dur = Number(document.getElementById('olTime').value);
       const imax = Number(document.getElementById('olImax').value);
       const fL = document.getElementById('olFreqLong').value;
@@ -754,10 +724,8 @@
       const mult = getMultiplier(dur, fL, fS);
       const adjusted = (Number.isFinite(imax) && Number.isFinite(mult) && mult>0) ? (imax / mult) : NaN;
 
-      // Calculate curve current at the given time
       const Icurve = Number.isFinite(dur) && dur>0 ? currentAtTimeFromTcc(tcc.X, tcc.Y, dur) : NaN;
 
-      // Traces
       const traceCurve = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'TCC', line:{width:2} };
       const dotCurve = (Number.isFinite(Icurve) && Number.isFinite(dur))
         ? { x:[Icurve], y:[dur], mode:'markers+text', type:'scatter', name:'Curve point',
@@ -770,7 +738,6 @@
             marker:{size:12, symbol:'x', line:{width:2}} }
         : { x:[], y:[], type:'scatter', mode:'markers', name:'Imax / multiplier', visible:false };
 
-      // Layout
       const xMin = Math.min(...tcc.X), xMax = Math.max(...tcc.X);
       const yMin = Math.min(...tcc.Y), yMax = Math.max(...tcc.Y);
       const layout = {
@@ -783,23 +750,17 @@
 
       Plotly.newPlot(containerId, [traceCurve, dotCurve, dotAdjusted], layout, PLOT_CONFIG);
 
-      // Update results panel
       document.getElementById('olMultiplier').textContent = Number.isFinite(mult) ? mult.toFixed(3) : '—';
       document.getElementById('olAdjustedI').textContent = Number.isFinite(adjusted) ? fmt(adjusted,3) : '—';
       document.getElementById('olCurveI').textContent    = Number.isFinite(Icurve) ? fmt(Icurve,3) : '—';
 
       let resultText = '—';
       if(Number.isFinite(adjusted) && Number.isFinite(Icurve)){
-        if(adjusted <= Icurve){
-          resultText = 'Able to support overload ✓';
-        } else {
-          resultText = 'Not able to support overload ✗';
-        }
+        resultText = adjusted <= Icurve ? 'Able to support overload ✓' : 'Not able to support overload ✗';
       }
       document.getElementById('olResult').textContent = resultText;
     }
 
-    // Wire up overload events
     ['olImax','olTime','olFreqLong','olFreqShort'].forEach(id=>{
       const el = document.getElementById(id);
       el.addEventListener('input', drawOverloadChart);
@@ -818,10 +779,8 @@
       tempTable=tjson; areaTable=ajson; freqTable=fjson; airTable=vjson;
       partsData.forEach((p,i)=>{ p.I=Number(p.I); p.V=Number(p.V); partsIdxByKey.set(p.part, i); });
 
-      // Curves tab charts (render empty until a fuse is applied/selected)
       buildCurvesCharts();
 
-      // Curves events
       document.getElementById('searchBtn').addEventListener('click', searchFuses);
       document.getElementById('clearBtn').addEventListener('click',()=>{
         document.getElementById('currentInput').value='';
@@ -829,27 +788,20 @@
         document.getElementById('fuseListContainer').style.display='none';
         selectedFuse=null;
         ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
-        // clear overload chart too
         drawOverloadChart();
       });
       document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); }});
-
       document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
       document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
       document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
 
-      // Derating: make graphs visible immediately and keep them live
-      // Initial draw with no fuse (generic family curves)
       computeAndRenderDerating(null);
 
-      // Live updates for derating inputs
       ['currentInputDerate','voltageInputDerate','gFactor','tempInput','areaInput','airInput','freqInput','altInput']
         .forEach(id=> document.getElementById(id).addEventListener('input', ()=>computeAndRenderDerating(null)));
 
-      // Button explicitly refreshes recommendations (optional; graphs already live)
       document.getElementById('updateRecsBtn').addEventListener('click', ()=>computeAndRenderDerating(null));
 
-      // Initial overload chart state
       drawOverloadChart();
     })();
   </script>
