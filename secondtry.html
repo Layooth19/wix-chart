@@ -275,8 +275,10 @@
             <div class="panel">
               <div class="ctrlrow"><h3>Result</h3><span class="small">Live as you edit</span></div>
               <div class="result-card">
-                <div class="kv"><span>Multiplier</span><strong id="olMultiplier">—</strong></div>
-                <div class="kv"><span>Imax / multiplier (A)</span><strong id="olAdjustedI">—</strong></div>
+                <div class="kv"><span>Multiplier (> 1 s)</span><strong id="olMultLong">—</strong></div>
+                <div class="kv"><span>Imax / multiplier (> 1 s) (A)</span><strong id="olAdjLong">—</strong></div>
+                <div class="kv"><span>Multiplier (≤ 1 s)</span><strong id="olMultShort">—</strong></div>
+                <div class="kv"><span>Imax / multiplier (≤ 1 s) (A)</span><strong id="olAdjShort">—</strong></div>
                 <div class="kv"><span>Curve current at t (A)</span><strong id="olCurveI">—</strong></div>
                 <div class="kv big"><span>Status</span><strong id="olResult">—</strong></div>
               </div>
@@ -544,7 +546,6 @@
     }
 
     // ----- Recommendations (by I_derated & exact V) -----
-    // NOTE: preferredPart preserves or sets the selection after rebuilding the list
     function updateRecommendations(voltageExact, Iderated, preferredPart){
       const recCard = document.getElementById('recCard');
       const recSel  = document.getElementById('recSelect');
@@ -598,7 +599,6 @@
       recCard.style.display='block';
       recInfo.textContent = `Recommended rating: ${target} A (Iₙext ≥ I_derated = ${fmt(Iderated,3)} A) at ${voltageExact} V.`;
 
-      // Preserve selection if possible; otherwise use preferredPart; else first item
       const want = preferredPart ?? currentSelected;
       if (want && Array.from(recSel.options).some(opt => opt.value === want)) {
         recSel.value = want;
@@ -611,7 +611,6 @@
     }
 
     // Compute + render derating (no fuse required)
-    // preferredPart: when supplied, keeps that item selected in recommendations after rebuild
     function computeAndRenderDerating(optionalFuse, preferredPart){
       const fam = optionalFuse ? optionalFuse.family : (selectedFuse ? selectedFuse.family : null);
       const Ib  = Number(document.getElementById('currentInputDerate').value);
@@ -655,7 +654,6 @@
       document.getElementById('val-Iderated').textContent = isFinite(Iderated)? fmt(Iderated,3) : '—';
 
       const Vexact = Number(document.getElementById('voltageInputDerate').value);
-      // Preserve current selection by default if preferredPart not passed
       const currentSel = document.getElementById('recSelect').value || null;
       updateRecommendations(Vexact, Iderated, preferredPart ?? currentSel);
     }
@@ -679,15 +677,13 @@
       // Overload section remains tied to recommended selection only
     });
 
-    // Recommendations change: do NOT rebuild list (which would reset selection).
-    // Instead, recompute factors using that fuse's family & keep this selection preferred.
+    // Recommendations change
     document.getElementById('recSelect').addEventListener('change', (e)=>{
       const part = e.target.value;
       const idx = partsIdxByKey.get(part);
       const applyBtn = document.getElementById('applyToCurvesBtn');
       applyBtn.disabled = !part;
       if(idx === undefined) { drawOverloadChart(); return; }
-      // Pass preferredPart to keep this selection after any internal rebuild
       computeAndRenderDerating(partsData[idx], part); // also refreshes overload chart
     });
 
@@ -726,13 +722,6 @@
       return prepSeries(c.current, c.time);
     }
 
-    function getMultiplier(durationSec, valLongStr, valShortStr){
-      const vLong  = Number(valLongStr || '1.0');
-      const vShort = Number(valShortStr || '1.0');
-      if(Number.isFinite(durationSec) && durationSec > 1) return (Number.isFinite(vLong)? vLong : 1.0);
-      return (Number.isFinite(vShort)? vShort : 1.0);
-    }
-
     function currentAtTimeFromTcc(Xcurr, Ytime, tQuery){
       if(!Array.isArray(Xcurr) || !Array.isArray(Ytime) || Xcurr.length!==Ytime.length || Xcurr.length<2) return NaN;
       const pairs = Xcurr.map((c,i)=>({t:Ytime[i], c}));
@@ -766,10 +755,12 @@
         container.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">Pick a recommended fuse (above) to test overloads.</div>';
         if(hint) hint.style.display='block';
         // Clear panel numbers
-        document.getElementById('olMultiplier').textContent = '—';
-        document.getElementById('olAdjustedI').textContent  = '—';
-        document.getElementById('olCurveI').textContent     = '—';
-        document.getElementById('olResult').textContent     = '—';
+        document.getElementById('olMultLong').textContent = '—';
+        document.getElementById('olAdjLong').textContent  = '—';
+        document.getElementById('olMultShort').textContent= '—';
+        document.getElementById('olAdjShort').textContent = '—';
+        document.getElementById('olCurveI').textContent   = '—';
+        document.getElementById('olResult').textContent   = '—';
         return;
       }
       if(hint) hint.style.display='none';
@@ -783,10 +774,15 @@
 
       const dur = Number(document.getElementById('olTime').value);
       const imax = Number(document.getElementById('olImax').value);
-      const fL = document.getElementById('olFreqLong').value;
-      const fS = document.getElementById('olFreqShort').value;
-      const mult = getMultiplier(dur, fL, fS);
-      const adjusted = (Number.isFinite(imax) && Number.isFinite(mult) && mult>0) ? (imax / mult) : NaN;
+      const multLong  = Number(document.getElementById('olFreqLong').value || '1.0'); // > 1 s
+      const multShort = Number(document.getElementById('olFreqShort').value || '1.0'); // ≤ 1 s
+
+      const adjLong  = (Number.isFinite(imax) && Number.isFinite(multLong)  && multLong>0)  ? (imax / multLong)   : NaN;
+      const adjShort = (Number.isFinite(imax) && Number.isFinite(multShort) && multShort>0) ? (imax / multShort)  : NaN;
+
+      const applicableAdj = (Number.isFinite(dur) && dur>1) ? adjLong : adjShort;
+      const applicableMult= (Number.isFinite(dur) && dur>1) ? multLong : multShort;
+
       const Icurve = (Number.isFinite(dur) && dur>0) ? currentAtTimeFromTcc(tcc.X, tcc.Y, dur) : NaN;
 
       const samples = Number(document.getElementById('smoothPoints')?.value) || 500;
@@ -794,16 +790,18 @@
       const traceDense = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'Interpolated', line:{width:2, dash:'dot'}, hoverinfo:'skip' };
       const traceRaw   = { x:tcc.X,  y:tcc.Y,  mode:'lines+markers', type:'scatter', name:'Raw', line:{width:2}, marker:{size:6} };
 
+      // Curve point (bold green)
       const dotCurve = (Number.isFinite(Icurve) && Number.isFinite(dur))
         ? { x:[Icurve], y:[dur], mode:'markers+text', type:'scatter', name:'Curve point',
             marker:{size:14, symbol:'circle', line:{width:2}, color:'green'},
             text:[`I=${pretty(Icurve)} A<br>t=${prettyTime(dur)} s`], textposition:'top center', hoverinfo:'skip' }
         : { x:[], y:[], type:'scatter', mode:'markers', name:'Curve point', visible:false };
 
-      const dotAdjusted = (Number.isFinite(adjusted) && Number.isFinite(dur))
-        ? { x:[adjusted], y:[dur], mode:'markers', type:'scatter', name:'Imax / multiplier',
+      // Only plot the applicable adjusted point as an "X"
+      const dotAdjusted = (Number.isFinite(applicableAdj) && Number.isFinite(dur))
+        ? { x:[applicableAdj], y:[dur], mode:'markers', type:'scatter', name:'Imax / multiplier (applicable)',
             marker:{size:12, symbol:'x', line:{width:2}}, hoverinfo:'skip' }
-        : { x:[], y:[], type:'scatter', mode:'markers', name:'Imax / multiplier', visible:false };
+        : { x:[], y:[], type:'scatter', mode:'markers', name:'Imax / multiplier (applicable)', visible:false };
 
       const xMin=Math.min(...tcc.X), xMax=Math.max(...tcc.X);
       const yMin=Math.min(...tcc.Y), yMax=Math.max(...tcc.Y);
@@ -817,15 +815,18 @@
         showlegend:true
       };
 
-      Plotly.newPlot(containerId, [traceDense, traceRaw, dotCurve, dotAdjusted], PLOT_CONFIG ? {...layout} : layout, PLOT_CONFIG);
+      Plotly.newPlot(containerId, [traceDense, traceRaw, dotCurve, dotAdjusted], layout, PLOT_CONFIG);
 
-      document.getElementById('olMultiplier').textContent = Number.isFinite(mult) ? mult.toFixed(3) : '—';
-      document.getElementById('olAdjustedI').textContent  = Number.isFinite(adjusted) ? fmt(adjusted,3) : '—';
-      document.getElementById('olCurveI').textContent     = Number.isFinite(Icurve) ? fmt(Icurve,3) : '—';
+      // Populate result fields
+      document.getElementById('olMultLong').textContent   = Number.isFinite(multLong)  ? multLong.toFixed(3)  : '—';
+      document.getElementById('olAdjLong').textContent    = Number.isFinite(adjLong)   ? fmt(adjLong,3)       : '—';
+      document.getElementById('olMultShort').textContent  = Number.isFinite(multShort) ? multShort.toFixed(3) : '—';
+      document.getElementById('olAdjShort').textContent   = Number.isFinite(adjShort)  ? fmt(adjShort,3)      : '—';
+      document.getElementById('olCurveI').textContent     = Number.isFinite(Icurve)    ? fmt(Icurve,3)        : '—';
 
       let resultText = '—';
-      if(Number.isFinite(adjusted) && Number.isFinite(Icurve)){
-        resultText = adjusted <= Icurve ? 'Able to support overload ✓' : 'Not able to support overload ✗';
+      if(Number.isFinite(applicableAdj) && Number.isFinite(Icurve)){
+        resultText = applicableAdj <= Icurve ? 'Able to support overload ✓' : 'Not able to support overload ✗';
       }
       document.getElementById('olResult').textContent = resultText;
     }
