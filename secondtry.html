@@ -213,6 +213,61 @@
           <div class="hint" id="recInfo"></div>
         </div>
       </section>
+
+      <!-- ===================== INFLUENCE OF OVERLOADS (ADDED) ===================== -->
+      <section class="card" id="overloadsCard">
+        <div class="ctrlrow"><h3>Influence of overloads (suitability test)</h3><span class="small">Uses TCC of the currently selected fuse</span></div>
+        <div class="controls">
+          <div class="row">
+            <div class="field">
+              <label for="olImax">Imax – maximum load current (A)</label>
+              <input type="number" id="olImax" placeholder="e.g., 1500" min="0" step="1" />
+            </div>
+            <div class="field">
+              <label for="olTime">Overload duration (s)</label>
+              <input type="number" id="olTime" placeholder="e.g., 10" min="0.001" step="0.001" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="olFreqLong">Frequency of overloads ≥ 1 s</label>
+              <select id="olFreqLong">
+                <option value="0.8">Less than 1 time per month</option>
+                <option value="0.7">Less than 2 times per week</option>
+                <option value="0.6">Several times a day</option>
+                <option value="1.0" selected>No</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="olFreqShort">Frequency of overloads &lt; 1 s</label>
+              <select id="olFreqShort">
+                <option value="0.7">Less than 1 time per month</option>
+                <option value="0.6">Less than 2 times per week</option>
+                <option value="0.5">Several times a day</option>
+                <option value="1.0" selected>No</option>
+              </select>
+            </div>
+            <div class="field actions-row" style="align-self:flex-end">
+              <button id="olTestBtn" type="button">Test overload suitability</button>
+            </div>
+          </div>
+
+          <div class="hint" id="olHint">Select/apply a fuse to test against its TCC.</div>
+
+          <div class="panel" style="margin-top:8px">
+            <div class="ctrlrow"><h3>TCC (for overload test)</h3><span class="small">x: Current (A) • y: Time (s)</span></div>
+            <div id="chart-overload" class="chart-sm"></div>
+          </div>
+
+          <div class="result-card" style="margin-top:8px">
+            <div class="kv"><span>Multiplier</span><strong id="olMultiplier">—</strong></div>
+            <div class="kv"><span>Imax / multiplier (A)</span><strong id="olAdjustedI">—</strong></div>
+            <div class="kv"><span>Curve current at time (A)</span><strong id="olCurveI">—</strong></div>
+            <div class="kv big"><span>Result</span><strong id="olResult">—</strong></div>
+          </div>
+        </div>
+      </section>
+      <!-- =================== /INFLUENCE OF OVERLOADS (ADDED) =================== -->
     </section>
   </main>
 
@@ -249,8 +304,8 @@
     // -------- utilities --------
     async function loadJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error(`Failed to load ${url}`); return r.json(); }
     function fmt(n,d=3){ return Number(n).toFixed(d); }
-    function normalizeRatingKey(I){ const base=`${I}A`; return [base, `${base}*`, `${I} A`]; }
-    function formatOption(p){ return `${p.part}  —  ${p.family}  •  ${p.I}A  •  ${p.V}V`; }
+    function normalizeRatingKey(I){ const base=\`\${I}A\`; return [base, \`\${base}*\`, \`\${I} A\`]; }
+    function formatOption(p){ return \`\${p.part}  —  \${p.family}  •  \${p.I}A  •  \${p.V}V\`; }
 
     function linInterp(pairs, x){
       if(!pairs || !pairs.length) return NaN;
@@ -363,14 +418,14 @@
     function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
     function getWattsCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(wattsData[fam]||{})["all"]; if(!c)return null; const s=prepSeries(c.current,c.time); return {X:s.X.map(v=>Math.min(v*100,100)), Y:s.Y}; }
     function getArcCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(arcData[fam]||{})["all"]; if(!c)return null; return prepSeries(c.current,c.time); }
-    function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=`${selectedFuse.I}A`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
+    function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=\`\${selectedFuse.I}A\`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
 
     // Tooltips
     const tooltipFmt = {
-      tcc:  (x,y)=> `Current: ${pretty(x)} A  |  Time: ${prettyTime(y)} s`,
-      watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
-      arc:  (x,y)=> `Eg: ${pretty(x)}  |  Ul: ${y.toFixed(0)} V`,
-      cut:  (x,y)=> `Prospective: ${pretty(x)} A  |  Let-through: ${pretty(y)} A`,
+      tcc:  (x,y)=> \`Current: \${pretty(x)} A  |  Time: \${prettyTime(y)} s\`,
+      watts:(x,y)=> \`Load current: \${x.toFixed(0)}%  |  Kp: \${y.toFixed(3)}\`,
+      arc:  (x,y)=> \`Eg: \${pretty(x)}  |  Ul: \${y.toFixed(0)} V\`,
+      cut:  (x,y)=> \`Prospective: \${pretty(x)} A  |  Let-through: \${pretty(y)} A\`,
     };
     function pretty(v){ if(v>=1000) return v.toFixed(0); if(v>=100) return v.toFixed(1); if(v>=10) return v.toFixed(2); if(v>=1) return v.toFixed(3); return v.toExponential(2); }
     function prettyTime(v){ return v>=1? v.toFixed(3) : v.toExponential(2); }
@@ -378,10 +433,10 @@
     // Build & refresh curves charts
     let chartTcc, chartWatts, chartArc, chartCut;
     function buildCurvesCharts(){
-      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
-      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts });
-      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc });
-      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut });
+      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? \`\${selectedFuse.part} — \${selectedFuse.family} — \${selectedFuse.I}A @ \${selectedFuse.V}V\` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
+      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? \`Watts Loss — \${selectedFuse.family}\` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts });
+      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? \`Arc Voltage — \${selectedFuse.family}\` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc });
+      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? \`Cut-off — \${selectedFuse.family} — \${selectedFuse.I}A\` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut });
     }
     function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); }
 
@@ -393,10 +448,10 @@
       err.textContent=''; sel.innerHTML='';
       if(!Number.isFinite(I)||!Number.isFinite(V)){ err.textContent='Please enter valid numeric current and voltage.'; cont.style.display='none'; return; }
       const matches=partsData.filter(p=>p.I===I && p.V===V).sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
-      if(!matches.length){ err.textContent=`No fuses found with ${I}A and exactly ${V}V.`; cont.style.display='none'; return; }
+      if(!matches.length){ err.textContent=\`No fuses found with \${I}A and exactly \${V}V.\`; cont.style.display='none'; return; }
       const frag=document.createDocumentFragment(); for(const p of matches){ const o=document.createElement('option'); o.value=p.part; o.textContent=formatOption(p); frag.appendChild(o); }
       sel.appendChild(frag); cont.style.display='block';
-      document.getElementById('infoText').textContent = `Found ${matches.length} matching fuse${matches.length>1?'s':''}. Select one to plot.`;
+      document.getElementById('infoText').textContent = \`Found \${matches.length} matching fuse\${matches.length>1?'s':''}. Select one to plot.\`;
       sel.selectedIndex=0; onFuseSelected();
     }
     function onFuseSelected(){
@@ -404,9 +459,11 @@
       selectedFuse=partsData[idx];
       document.getElementById('badgePart').textContent=selectedFuse.part;
       document.getElementById('badgeFamily').textContent=selectedFuse.family;
-      document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
-      document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
+      document.getElementById('badgeRating').textContent=\`\${selectedFuse.I}A\`;
+      document.getElementById('badgeVoltage').textContent=\`\${selectedFuse.V}V\`;
       refreshCurvesCharts();
+      // also refresh overload panel chart because it depends on selected fuse
+      drawOverloadChart();
     }
 
     // ---------- DERATING ----------
@@ -496,7 +553,7 @@
       const target = ratings.find(r => r >= Iderated);
 
       if (target === undefined){
-        recInfo.textContent = `No fuse rating ≥ ${fmt(Iderated,3)} A at ${voltageExact} V.`;
+        recInfo.textContent = \`No fuse rating ≥ \${fmt(Iderated,3)} A at \${voltageExact} V.\`;
         recCard.style.display='block';
         return;
       }
@@ -505,7 +562,7 @@
                       .sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
 
       if(!recs.length){
-        recInfo.textContent = `No parts at ${target} A found at ${voltageExact} V.`;
+        recInfo.textContent = \`No parts at \${target} A found at \${voltageExact} V.\`;
         recCard.style.display='block';
         return;
       }
@@ -519,7 +576,7 @@
       }
       recSel.appendChild(frag);
       recCard.style.display='block';
-      recInfo.textContent = `Recommended rating: ${target} A (Iₙext ≥ I_derated = ${fmt(Iderated,3)} A) at ${voltageExact} V.`;
+      recInfo.textContent = \`Recommended rating: \${target} A (Iₙext ≥ I_derated = \${fmt(Iderated,3)} A) at \${voltageExact} V.\`;
       recSel.selectedIndex = 0;
       applyBtn.disabled = false;
     }
@@ -558,7 +615,7 @@
       // Results panel
       document.getElementById('val-kT').textContent   = isFinite(kT)?  fmt(kT,3): '—';
       document.getElementById('val-kA').textContent   = isFinite(kA)?  fmt(kA,3): '—';
-      document.getElementById('val-kePct').textContent= isFinite(kePct)? `${kePct.toFixed(1)} %` : '—';
+      document.getElementById('val-kePct').textContent= isFinite(kePct)? \`\${kePct.toFixed(1)} %\` : '—';
       document.getElementById('val-kV').textContent   = isFinite(kV)?  fmt(kV,3): '—';
       document.getElementById('val-kF').textContent   = isFinite(kF)?  fmt(kF,3): '—';
       document.getElementById('val-kAlt').textContent = fmt(kAlt,3);
@@ -573,6 +630,9 @@
       // Update recommendations live
       const Vexact = Number(document.getElementById('voltageInputDerate').value);
       updateRecommendations(Vexact, Iderated);
+
+      // Keep overload chart up-to-date with current selection
+      drawOverloadChart();
     }
 
     // --- Apply to Curves button ---
@@ -587,12 +647,15 @@
       // update badges
       document.getElementById('badgePart').textContent=selectedFuse.part;
       document.getElementById('badgeFamily').textContent=selectedFuse.family;
-      document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
-      document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
+      document.getElementById('badgeRating').textContent=\`\${selectedFuse.I}A\`;
+      document.getElementById('badgeVoltage').textContent=\`\${selectedFuse.V}V\`;
       refreshCurvesCharts();
 
       // switch to Curves tab
       activateTab('curves');
+
+      // also refresh overload
+      drawOverloadChart();
     });
 
     // Recommendations change: recalc derating using that fuse's family (for factor tables)
@@ -613,11 +676,137 @@
       panelCurves.setAttribute('aria-hidden', isCurves?'false':'true');
       panelDerate.setAttribute('aria-hidden', isCurves?'true':'false');
       const ids = isCurves ? ['chart-tcc','chart-watts','chart-arc','chart-cutoff']
-                           : ['chart-kT','chart-kA','chart-kV','chart-kF'];
+                           : ['chart-kT','chart-kA','chart-kV','chart-kF','chart-overload'];
       ids.forEach(id=>{ const el=document.getElementById(id); if(el && el.children.length){ Plotly.Plots.resize(id); }});
     }
     tabCurves.addEventListener('click', ()=>activateTab('curves'));
     tabDerate.addEventListener('click', ()=>activateTab('derate'));
+
+    // ==================== INFLUENCE OF OVERLOADS LOGIC (ADDED) ====================
+    function getMultiplier(duration, longValStr, shortValStr){
+      // duration in seconds; use long (>=1s) or short (<1s)
+      const longVal = parseFloat(longValStr);
+      const shortVal = parseFloat(shortValStr);
+      if(!Number.isFinite(duration)) return 1.0;
+      if(duration >= 1) {
+        // Mapping per spec: options already provide numeric factors (0.8, 0.7, 0.6, 1.0)
+        return longVal || 1.0;
+      } else {
+        return shortVal || 1.0;
+      }
+    }
+
+    // Find CURRENT at a given TIME on the TCC via log–log interpolation (Y is time, X is current)
+    function currentAtTimeFromTcc(X, Y, tTarget){
+      if(!X || !Y || X.length<2 || !Number.isFinite(tTarget) || tTarget<=0) return NaN;
+      // Ensure both arrays are sorted by X ascending (they are), Y usually decreases with X
+      // Work in log space for both axes
+      const lx = X.map(v => Math.log10(v));
+      const ly = Y.map(v => Math.log10(v));
+      const ty = Math.log10(tTarget);
+
+      // Binary search for segment where time crosses ty
+      // Since ly is typically decreasing, find indices j-1 and j such that ly[j-1] >= ty >= ly[j] OR vice versa
+      let j = -1;
+      for(let i=1;i<ly.length;i++){
+        const y1=ly[i-1], y2=ly[i];
+        if((y1>=ty && ty>=y2) || (y1<=ty && ty<=y2)){ j=i; break; }
+      }
+      if(j===-1){
+        // Clamp to ends
+        if(ty >= ly[0]) return 10**lx[0];                // beyond left (longer time than first)
+        if(ty <= ly[ly.length-1]) return 10**lx[lx.length-1]; // beyond right (shorter time than last)
+        return NaN;
+      }
+      const t = (ty - ly[j-1]) / (ly[j]-ly[j-1]);
+      const lxq = lx[j-1] + t*(lx[j]-lx[j-1]);
+      return 10**lxq;
+    }
+
+    function drawOverloadChart(){
+      const hint = document.getElementById('olHint');
+      const containerId = 'chart-overload';
+      const container = document.getElementById(containerId);
+
+      if(!selectedFuse){
+        Plotly.purge(containerId);
+        container.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">No fuse selected. Choose a fuse in Curves or click "Apply to Curves" in Derating.</div>';
+        hint.style.display = 'block';
+        return;
+      }
+      hint.style.display = 'none';
+
+      const tcc = getTccCurve();
+      if(!tcc || !tcc.X || !tcc.X.length){
+        Plotly.purge(containerId);
+        container.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">No TCC data available for this fuse.</div>';
+        return;
+      }
+
+      // Build a dense curve (log–log)
+      const {denseX, denseY} = interpolateSeries(tcc.X, tcc.Y, 600, 'log');
+
+      // Read overload inputs
+      const dur = Number(document.getElementById('olTime').value);
+      const imax = Number(document.getElementById('olImax').value);
+      const fL = document.getElementById('olFreqLong').value;
+      const fS = document.getElementById('olFreqShort').value;
+      const mult = getMultiplier(dur, fL, fS);
+      const adjusted = (Number.isFinite(imax) && Number.isFinite(mult) && mult>0) ? (imax / mult) : NaN;
+
+      // Calculate curve current at the given time
+      const Icurve = Number.isFinite(dur) && dur>0 ? currentAtTimeFromTcc(tcc.X, tcc.Y, dur) : NaN;
+
+      // Traces
+      const traceCurve = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'TCC', line:{width:2} };
+      const dotCurve = (Number.isFinite(Icurve) && Number.isFinite(dur))
+        ? { x:[Icurve], y:[dur], mode:'markers+text', type:'scatter', name:'Curve point',
+            marker:{size:14, symbol:'circle', line:{width:2}, color:'green'},
+            text:[`I=${pretty(Icurve)} A<br>t=${prettyTime(dur)} s`], textposition:'top center' }
+        : { x:[], y:[], type:'scatter', mode:'markers', name:'Curve point', visible:false };
+
+      const dotAdjusted = (Number.isFinite(adjusted) && Number.isFinite(dur))
+        ? { x:[adjusted], y:[dur], mode:'markers', type:'scatter', name:'Imax / multiplier',
+            marker:{size:12, symbol:'x', line:{width:2}} }
+        : { x:[], y:[], type:'scatter', mode:'markers', name:'Imax / multiplier', visible:false };
+
+      // Layout
+      const xMin = Math.min(...tcc.X), xMax = Math.max(...tcc.X);
+      const yMin = Math.min(...tcc.Y), yMax = Math.max(...tcc.Y);
+      const layout = {
+        hovermode:'closest', dragmode:'pan', uirevision:'overload',
+        xaxis:{type:'log', title:'Current (A)', range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9'},
+        yaxis:{type:'log', title:'Time (s)',   range:[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05], gridcolor:'#f1f5f9'},
+        margin:{l:60,r:10,t:20,b:48},
+        showlegend:true
+      };
+
+      Plotly.newPlot(containerId, [traceCurve, dotCurve, dotAdjusted], layout, PLOT_CONFIG);
+
+      // Update results panel
+      document.getElementById('olMultiplier').textContent = Number.isFinite(mult) ? mult.toFixed(3) : '—';
+      document.getElementById('olAdjustedI').textContent = Number.isFinite(adjusted) ? fmt(adjusted,3) : '—';
+      document.getElementById('olCurveI').textContent    = Number.isFinite(Icurve) ? fmt(Icurve,3) : '—';
+
+      let resultText = '—';
+      if(Number.isFinite(adjusted) && Number.isFinite(Icurve)){
+        if(adjusted <= Icurve){
+          resultText = 'Able to support overload ✓';
+        } else {
+          resultText = 'Not able to support overload ✗';
+        }
+      }
+      document.getElementById('olResult').textContent = resultText;
+    }
+
+    // Wire up overload events
+    ['olImax','olTime','olFreqLong','olFreqShort'].forEach(id=>{
+      const el = document.getElementById(id);
+      el.addEventListener('input', drawOverloadChart);
+      el.addEventListener('change', drawOverloadChart);
+    });
+    document.getElementById('olTestBtn').addEventListener('click', drawOverloadChart);
+    // ================== /INFLUENCE OF OVERLOADS LOGIC (ADDED) ==================
 
     // Boot
     (async () => {
@@ -640,8 +829,11 @@
         document.getElementById('fuseListContainer').style.display='none';
         selectedFuse=null;
         ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
+        // clear overload chart too
+        drawOverloadChart();
       });
       document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); }});
+
       document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
       document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
       document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
@@ -656,6 +848,9 @@
 
       // Button explicitly refreshes recommendations (optional; graphs already live)
       document.getElementById('updateRecsBtn').addEventListener('click', ()=>computeAndRenderDerating(null));
+
+      // Initial overload chart state
+      drawOverloadChart();
     })();
   </script>
 </body>
