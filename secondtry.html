@@ -14,18 +14,15 @@
     header h1{ margin:0 0 6px; font-size:22px }
     header p{ margin:0; color:var(--muted) }
 
-    /* Layout: prevent side scroll, responsive grids */
     .wrap{ max-width:1200px; margin:0 auto; padding:16px; display:grid; gap:16px }
     .card{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:14px; min-width:0 }
 
-    /* Tabs */
     .tabs{ display:flex; gap:8px; border-bottom:1px solid #e5e7eb; padding:0 4px; overflow:auto; }
     .tabbtn{ appearance:none; border:0; background:transparent; padding:10px 14px; border-radius:10px 10px 0 0; font-weight:600; cursor:pointer; color:#374151; white-space:nowrap }
     .tabbtn[aria-selected="true"]{ background:#fff; color:#111827; box-shadow:0 -2px 0 #fff, 0 0 0 1px #e5e7eb }
     .tabpanel{ display:none }
     .tabpanel[aria-hidden="false"]{ display:block }
 
-    /* Controls / layout */
     .controls{ display:grid; gap:10px; min-width:0 }
     .row{ display:flex; gap:10px; flex-wrap:wrap; min-width:0 }
     .field{ flex:1 1 220px; min-width:0 }
@@ -60,17 +57,33 @@
 
     /* Image panels */
     .imgpanel{ display:flex; flex-direction:column; gap:8px }
-    .imgbox{ width:100%; height:300px; background:#f8fafc; border:1px dashed #e5e7eb; border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-    .imgbox img{ max-width:100%; max-height:100%; object-fit:contain; }
+    .imgbox{ width:100%; height:300px; background:#f8fafc; border:1px dashed #e5e7eb; border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
+    .imgbox img{ max-width:100%; max-height:100%; object-fit:contain; cursor:zoom-in; }
     .imgcaption{ font-size:12px; color:#6b7280; text-align:center }
+    .imgactions{ display:flex; justify-content:flex-end; gap:10px; margin:0 4px 6px; }
 
-    /* Overload side-by-side layout: collapses on small screens */
+    /* Fullscreen modal */
+    .modal{ position:fixed; inset:0; background:rgba(15,23,42,.75); display:none; align-items:center; justify-content:center; z-index:50; }
+    .modal.open{ display:flex; }
+    .modal-inner{ max-width:min(95vw,1400px); max-height:90vh; background:#0b1020; padding:12px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.4); }
+    .modal-inner img{ max-width:100%; max-height:82vh; object-fit:contain; }
+    .modal-bar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; color:#e5e7eb; font-size:14px; }
+    .modal-bar button{ background:#334155; }
+    .modal-bar a{ color:#93c5fd; text-decoration:underline; }
+
+    /* Overload layout */
     .overload-grid{ display:grid; grid-template-columns:2fr 1fr; gap:16px; min-width:0 }
+
     @media (max-width: 1100px){
       .grid, .grid-derate{ grid-template-columns:1fr; }
       .overload-grid{ grid-template-columns:1fr; }
       .wrap{ padding:12px; }
     }
+
+    /* Tiny inline control bar for X-axis pinning */
+    .tinybar{ display:flex; align-items:center; gap:8px; margin:0 8px 8px; flex-wrap:wrap; }
+    .tinybar input{ width:160px; padding:6px 8px; border-radius:8px; }
+    .tinybar button{ padding:6px 10px; border-radius:8px; }
   </style>
 </head>
 <body>
@@ -121,27 +134,63 @@
       </section>
 
       <section class="grid">
+        <!-- TCC -->
         <div class="panel">
           <div class="ctrlrow"><h3>Time–Current Curve (TCC)</h3><span class="small">x: Current (A) • y: Time (s)</span></div>
+          <div class="tinybar">
+            <label class="small" for="pinX-tcc">X (A)</label>
+            <input id="pinX-tcc" type="number" step="0.001" placeholder="Enter current A to pin" />
+            <button id="pinX-tcc-set">Set</button>
+            <button id="pinX-tcc-clear" class="ghost">Clear</button>
+          </div>
           <div id="chart-tcc" class="chart"></div>
         </div>
+
+        <!-- Curves: Image -->
         <div class="panel imgpanel" aria-live="polite">
           <div class="ctrlrow"><h3>Fuse Image (Selected)</h3><span class="small">Shows the currently selected fuse</span></div>
+          <div class="imgactions">
+            <a id="imgCurvesOpenNew" href="#" target="_blank" rel="noopener">Open in new tab</a>
+          </div>
           <div class="imgbox">
             <img id="fuseImgCurves" alt="Fuse image" />
           </div>
           <div class="imgcaption" id="fuseImgCurvesCap">No fuse selected.</div>
         </div>
+
+        <!-- Watts -->
         <div class="panel">
           <div class="ctrlrow"><h3>Watts Loss</h3><span class="small">x: Load Current (%) • y: Kp</span></div>
+          <div class="tinybar">
+            <label class="small" for="pinX-watts">X (%)</label>
+            <input id="pinX-watts" type="number" step="0.1" min="0" max="100" placeholder="Enter % to pin" />
+            <button id="pinX-watts-set">Set</button>
+            <button id="pinX-watts-clear" class="ghost">Clear</button>
+          </div>
           <div id="chart-watts" class="chart"></div>
         </div>
+
+        <!-- Arc -->
         <div class="panel">
           <div class="ctrlrow"><h3>Arc Voltage</h3><span class="small">x: Eg • y: Ul (300–3000 V)</span></div>
+          <div class="tinybar">
+            <label class="small" for="pinX-arc">X (Eg)</label>
+            <input id="pinX-arc" type="number" step="0.001" placeholder="Enter Eg to pin" />
+            <button id="pinX-arc-set">Set</button>
+            <button id="pinX-arc-clear" class="ghost">Clear</button>
+          </div>
           <div id="chart-arc" class="chart"></div>
         </div>
+
+        <!-- Cutoff -->
         <div class="panel">
           <div class="ctrlrow"><h3>Cut-off Curve</h3><span class="small">x: Prospective current • y: Peak let-through</span></div>
+          <div class="tinybar">
+            <label class="small" for="pinX-cut">X (A)</label>
+            <input id="pinX-cut" type="number" step="0.001" placeholder="Enter prospective A to pin" />
+            <button id="pinX-cut-set">Set</button>
+            <button id="pinX-cut-clear" class="ghost">Clear</button>
+          </div>
           <div id="chart-cutoff" class="chart"></div>
         </div>
       </section>
@@ -228,7 +277,7 @@
         <div class="kv big"><span>I<sub>derated</sub> (A)</span><strong id="val-Iderated">—</strong></div>
       </section>
 
-      <!-- Recommendations (by derated current & exact voltage) -->
+      <!-- Recommendations -->
       <section class="card" id="recCard" style="display:none">
         <div class="controls">
           <label for="recSelect">Recommended fuses (exact V, next rating ≥ I<sub>derated</sub>)</label>
@@ -240,6 +289,9 @@
       <!-- Recommended Fuse Image -->
       <section class="card imgpanel" id="recImgCard" style="display:none">
         <div class="ctrlrow"><h3>Fuse Image (Recommended)</h3><span class="small">Shows the selected recommended fuse</span></div>
+        <div class="imgactions">
+          <a id="imgDerateOpenNew" href="#" target="_blank" rel="noopener">Open in new tab</a>
+        </div>
         <div class="imgbox">
           <img id="fuseImgDerate" alt="Recommended fuse image" />
         </div>
@@ -312,6 +364,20 @@
     </section>
   </main>
 
+  <!-- Fullscreen Image Modal -->
+  <div class="modal" id="imgModal" role="dialog" aria-modal="true" aria-labelledby="imgModalTitle">
+    <div class="modal-inner">
+      <div class="modal-bar">
+        <strong id="imgModalTitle">Fuse image</strong>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <a id="modalOpenNew" href="#" target="_blank" rel="noopener">Open in new tab</a>
+          <button id="modalCloseBtn">Close</button>
+        </div>
+      </div>
+      <img id="modalImg" alt="" />
+    </div>
+  </div>
+
   <script>
     // ---------------- URLs ----------------
     const partsUrl  = 'parts_catalog_fixed.json';
@@ -319,30 +385,25 @@
     const wattsUrl  = 'watts_loss_restructured.json';
     const arcUrl    = 'arc_voltage_restructured.json';
     const cutUrl    = 'cutoff_restructured.json';
-    // Derating factor JSONs (sheetName -> [{x, y}])
     const tempJsonUrl = 'temperature_k_factor.json';
-    const areaJsonUrl = 'percentage_ke_factor.json'; // x = % (50..100), y = Ke
+    const areaJsonUrl = 'percentage_ke_factor.json';
     const freqJsonUrl = 'frequency_kf_data.json';
     const airJsonUrl  = 'air_speed_kv_data.json';
 
     const PLOT_CONFIG = { responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false };
-    const CURSOR_TRACE_INDEX = 2;
+    const CURSOR_TRACE_INDEX = 1; // (changed, because we removed raw points)
 
-    // ---------------- shared data ----------------
     let partsData=[], partsIdxByKey=new Map();
     let tccData={}, wattsData={}, arcData={}, cutData={};
-    let selectedFuse=null; // global selection for Curves tab
+    let selectedFuse=null;
 
-    // Derating tables
     let tempTable={}, areaTable={}, freqTable={}, airTable={};
 
-    // Tabs
     const tabCurves  = document.getElementById('tab-curves');
     const tabDerate  = document.getElementById('tab-derate');
     const panelCurves= document.getElementById('panel-curves');
     const panelDerate= document.getElementById('panel-derate');
 
-    // -------- utilities --------
     async function loadJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error(`Failed to load ${url}`); return r.json(); }
     function fmt(n,d=3){ return Number(n).toFixed(d); }
     function normalizeRatingKey(I){ const base=`${I}A`; return [base, `${base}*`, `${I} A`]; }
@@ -360,7 +421,7 @@
       return arr[i1].y + t*(arr[i2].y - arr[i1].y);
     }
 
-    // ---------- FUSE IMAGE HELPERS (NEW) ----------
+    // ---------- IMAGE HELPERS ----------
     const PLACEHOLDER_SVG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
         <rect width="100%" height="100%" fill="#f8fafc"/>
@@ -371,15 +432,15 @@
       </svg>
     `);
 
-    /**
-     * Try to load /fuse_images/<part>.jpg; if it fails, try /fuse_images2/<part>.jpg; else show placeholder.
-     */
     function setFuseImage(imgId, captionId, part){
       const img = document.getElementById(imgId);
       const cap = document.getElementById(captionId);
+      const link = (imgId==='fuseImgCurves') ? document.getElementById('imgCurvesOpenNew') : document.getElementById('imgDerateOpenNew');
       if(!img) return;
       if(!part){
         img.src = PLACEHOLDER_SVG;
+        img.dataset.src = '';
+        if(link) link.href = '#';
         if(cap) cap.textContent = 'No fuse selected.';
         return;
       }
@@ -394,18 +455,54 @@
         const n = Number(img.dataset.try || '0');
         if(n === 0){
           img.dataset.try = '1';
-          img.src = src2; // try folder 2
+          img.src = src2;
+          img.dataset.src = src2;
+          if(link) link.href = src2;
         } else {
           img.onerror = null;
-          img.src = PLACEHOLDER_SVG; // give up → placeholder
+          img.src = PLACEHOLDER_SVG;
+          img.dataset.src = '';
+          if(link) link.href = '#';
           if(cap) cap.textContent = `No image found for ${part}`;
         }
       };
-      img.src = src1; // start with folder 1
+      img.onload = () => {
+        img.dataset.src = img.src;
+        if(link) link.href = img.src;
+      };
+      img.src = src1;
     }
 
+    // Modal logic
+    const modal = document.getElementById('imgModal');
+    const modalImg = document.getElementById('modalImg');
+    const modalOpenNew = document.getElementById('modalOpenNew');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+    function openModalWith(src, title='Fuse image'){
+      if(!src) return;
+      document.getElementById('imgModalTitle').textContent = title;
+      modalImg.src = src;
+      modalOpenNew.href = src;
+      modal.classList.add('open');
+    }
+    function closeModal(){ modal.classList.remove('open'); modalImg.src=''; }
+
+    modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
+    modalCloseBtn.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.classList.contains('open')) closeModal(); });
+
+    // Make images clickable to open modal
+    document.addEventListener('click', (e)=>{
+      if(e.target && (e.target.id==='fuseImgCurves' || e.target.id==='fuseImgDerate')){
+        const src = e.target.dataset.src || e.target.src;
+        openModalWith(src, e.target.alt || 'Fuse image');
+      }
+    });
+
     // ---------- CURVES TAB ----------
-    const denseCache = { tcc:{X:[],Y:[]}, watts:{X:[],Y:[]}, arc:{X:[],Y:[]}, cut:{X:[],Y:[]} };
+    const denseCache = { tcc:{X:[],Y:[]}, watts:{X:[],Y:[]}, arc:{X:[],Y:[]}, cut:{X:[],Y:[] } };
+    const pinnedX = { tcc:null, watts:null, arc:null, cut:null };
 
     function prepSeries(xs, ys){
       const pairs = xs.map((x,i)=>[Number(x), Number(ys[i])])
@@ -413,6 +510,7 @@
         .sort((a,b)=> a[0]-b[0]);
       return {X:pairs.map(p=>p[0]), Y:pairs.map(p=>p[1])};
     }
+
     function interpolateSeries(X,Y,samples, mode='log'){
       if (mode==='linear') {
         const xMin=X[0], xMax=X[X.length-1], step=(xMax-xMin)/(samples-1);
@@ -438,6 +536,7 @@
         return {denseX:dx, denseY:dy};
       }
     }
+
     function nearestIndex(arr, x){
       let lo=0, hi=arr.length-1;
       if(!arr.length) return 0;
@@ -447,65 +546,119 @@
       const i1=Math.max(0,lo-1), i2=Math.min(arr.length-1,lo);
       return Math.abs(arr[i1]-x)<=Math.abs(arr[i2]-x)?i1:i2;
     }
+
+    // Axis helpers
     function pixelToDataX(gd, px){
       const xax=gd._fullLayout.xaxis; const x0=xax._offset, xw=xax._length; const rx=(px-x0)/xw;
       return xax.type==='log' ? Math.pow(10, xax.range[0] + rx*(xax.range[1]-xax.range[0]))
                               : (xax.range[0] + rx*(xax.range[1]-xax.range[0]));
     }
-    function attachAlwaysOnTooltip(gd, cacheKey, tooltipFormatter){
+    function dataXToPixel(gd, x){
+      const xax=gd._fullLayout.xaxis; const x0=xax._offset, xw=xax._length;
+      if(xax.type==='log'){
+        const rx=(Math.log10(x)-xax.range[0])/(xax.range[1]-xax.range[0]);
+        return x0 + rx*xw;
+      } else {
+        const rx=(x-xax.range[0])/(xax.range[1]-xax.range[0]);
+        return x0 + rx*xw;
+      }
+    }
+
+    // Tooltip manager: supports hover OR pinnedX
+    function attachTooltip(gd, cacheKey, tooltipFormatter, getPinned){
       const host = gd; let raf=null, lastEvt=null;
       const tip=document.createElement('div');
-      Object.assign(tip.style,{position:'fixed',background:'rgba(255,255,255,0.95)',border:'1px solid #ccc',borderRadius:'6px',padding:'6px 10px',fontSize:'13px',pointerEvents:'none',whiteSpace:'nowrap',boxShadow:'0 2px 8px rgba(0,0,0,.08)',display:'none'});
+      Object.assign(tip.style,{position:'fixed',background:'rgba(255,255,255,0.95)',border:'1px solid #cbd5e1',borderRadius:'6px',padding:'6px 10px',fontSize:'13px',pointerEvents:'none',whiteSpace:'nowrap',boxShadow:'0 2px 8px rgba(0,0,0,.08)',display:'none',zIndex:20});
       document.body.appendChild(tip);
-      host.addEventListener('mousemove',(e)=>{
+
+      function placeTipAtDataX(x){
+        const dense=denseCache[cacheKey]; if(!dense.X.length) { tip.style.display='none'; return; }
+        const idx=nearestIndex(dense.X, x), cx=dense.X[idx], cy=dense.Y[idx];
+        Plotly.restyle(gd, {x:[[cx]], y:[[cy]]}, [CURSOR_TRACE_INDEX]);
+        tip.textContent = tooltipFormatter(cx,cy);
+        // Compute safe position near the point
+        const px = dataXToPixel(gd, cx);
+        const yax = gd._fullLayout.yaxis;
+        // pick center vertically within plot area
+        const py = yax._offset + yax._length/2;
+        const pad = 12;
+        tip.style.display='block';
+        tip.style.left = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, px + pad)) + 'px';
+        tip.style.top  = Math.max(8, Math.min(window.innerHeight - tip.offsetHeight - 8, py - tip.offsetHeight - pad)) + 'px';
+      }
+
+      function handleMove(e){
+        if(getPinned()) { // pinned -> ignore mouse, but ensure tip is shown at pinned
+          placeTipAtDataX(getPinned());
+          return;
+        }
         const r=host.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
         const xax=gd._fullLayout.xaxis, yax=gd._fullLayout.yaxis, x0=xax._offset, xw=xax._length, y0=yax._offset, yh=yax._length;
         if(px<x0||px>x0+xw||py<y0||py>y0+yh){tip.style.display='none';return;}
-        lastEvt={clientX:e.clientX, clientY:e.clientY, px};
+        lastEvt={clientX:e.clientX, clientY:e.clientY, px:e.clientX};
         if(raf) return;
         raf=requestAnimationFrame(()=>{
-          const {clientX, clientY, px} = lastEvt; const x=pixelToDataX(gd, px);
           const dense=denseCache[cacheKey]||{X:[],Y:[]}; if(!dense.X.length){tip.style.display='none'; raf=null; return;}
+          const x=pixelToDataX(gd, lastEvt.px);
           const idx=nearestIndex(dense.X, x), cx=dense.X[idx], cy=dense.Y[idx];
           Plotly.restyle(gd, {x:[[cx]], y:[[cy]]}, [CURSOR_TRACE_INDEX]);
           tip.textContent = tooltipFormatter(cx,cy);
-          tip.style.left=(clientX+14)+'px'; tip.style.top=(clientY-18)+'px'; tip.style.display='block'; raf=null;
+          // clamp tip to viewport
+          const pad=14;
+          const L=Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, lastEvt.clientX + pad));
+          const T=Math.max(8, Math.min(window.innerHeight - tip.offsetHeight - 8, lastEvt.clientY - 18));
+          tip.style.left=L+'px'; tip.style.top=T+'px'; tip.style.display='block'; raf=null;
         });
-      });
-      host.addEventListener('mouseleave', ()=>{tip.style.display='none';});
+      }
+
+      host.addEventListener('mousemove', handleMove);
+      host.addEventListener('mouseleave', ()=>{ if(!getPinned()) tip.style.display='none'; });
+
+      // Expose a refresh method (for when pinned value changes)
+      return {
+        refreshPinned(){
+          if(getPinned()) placeTipAtDataX(getPinned());
+          else tip.style.display='none';
+        }
+      };
     }
 
     function buildChart(opts){
-      const {containerId, title, getCurve, cacheKey, axisTypes, axisLabels, fixedYRange, xTransform, tooltip} = opts;
+      const {containerId, title, getCurve, cacheKey, axisTypes, axisLabels, fixedYRange, xTransform, tooltip, getPinned} = opts;
       const container=document.getElementById(containerId);
+      let tooltipCtl=null;
+
       function plotCurve(){
         const result=getCurve(); if(!result||!result.X||!result.Y||!result.X.length){Plotly.purge(containerId); container.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">No data for selection.</div>'; denseCache[cacheKey]={X:[],Y:[]}; return;}
         let X=result.X.slice(), Y=result.Y.slice(); if(xTransform){const X2=[],Y2=[]; for(let i=0;i<X.length;i++){const v=xTransform(X[i]); if(v==null) continue; X2.push(v); Y2.push(Y[i]);} X=X2; Y=Y2;}
         const samples=Number(document.getElementById('smoothPoints').value)||500;
         const mode=(axisTypes.x==='log'&&axisTypes.y==='log')?'log':'linear';
         const {denseX,denseY}=interpolateSeries(X,Y,samples,mode); denseCache[cacheKey]={X:denseX,Y:denseY};
+
         const xMin=Math.min(...X), xMax=Math.max(...X), yMin=Math.min(...Y), yMax=Math.max(...Y);
-        const traceDense={x:denseX,y:denseY,mode:'lines',type:'scatter',name:'Interpolated',line:{width:2,dash:'dot'},hoverinfo:'skip'};
-        const traceRaw={x:X,y:Y,mode:'lines+markers',type:'scatter',name:'Raw',line:{width:2},marker:{size:6}};
-        const traceCursor={x:[denseX[0]],y:[denseY[0]],mode:'markers',type:'scatter',name:'Cursor',marker:{size:12,symbol:'circle',line:{width:2}},hoverinfo:'skip'};
-        const layout={title:title(),hovermode:'closest',dragmode:'pan',uirevision:title(),
-          xaxis:{type:axisTypes.x,title:axisLabels.x,range:axisTypes.x==='log'?[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05]:[xMin,xMax],gridcolor:'#f1f5f9'},
+        // traces: NO RAW MARKERS (req)
+        const traceDense={x:denseX,y:denseY,mode:'lines',type:'scatter',name:'',line:{width:2},hoverinfo:'skip'};
+        const traceCursor={x:[denseX[0]],y:[denseY[0]],mode:'markers',type:'scatter',name:'',marker:{size:12,symbol:'circle',line:{width:2}},hoverinfo:'skip'};
+        const layout={title:title(),hovermode:false,dragmode:'pan',uirevision:title(),
+          xaxis:{type:axisTypes.x,title:axisLabels.x,range:axisTypes.x==='log'?[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05]:[xMin,xMax],gridcolor:'#f1f5f9',constrain:'domain'},
           yaxis:{type:axisTypes.y,title:axisLabels.y,range:fixedYRange?fixedYRange:(axisTypes.y==='log'?[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05]:[yMin,yMax]),gridcolor:'#f1f5f9'},
-          margin:{l:60,r:10,t:34,b:48}};
+          margin:{l:60,r:10,t:34,b:48},
+          showlegend:false
+        };
         if(cacheKey==='watts'){ const ymax=Math.max(...Y); layout.yaxis.range=[0.1, Math.max(0.11, ymax*1.05)]; }
         if(cacheKey==='arc'){ layout.yaxis.range=[300,3000]; }
-        Plotly.newPlot(containerId, [traceDense, traceRaw, traceCursor], layout, PLOT_CONFIG).then(gd=>attachAlwaysOnTooltip(gd, cacheKey, tooltip));
+
+        Plotly.newPlot(containerId, [traceDense, traceCursor], layout, PLOT_CONFIG).then(gd=>{
+          tooltipCtl = attachTooltip(gd, cacheKey, tooltip, getPinned);
+          // If X is pinned, update immediately
+          if(getPinned()) tooltipCtl.refreshPinned();
+        });
       }
-      plotCurve(); return { refresh: plotCurve };
+      plotCurve();
+      return { refresh: plotCurve, refreshTooltip: ()=>tooltipCtl && tooltipCtl.refreshPinned() };
     }
 
-    // Curve getters
-    function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
-    function getWattsCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(wattsData[fam]||{})["all"]; if(!c)return null; const s=prepSeries(c.current,c.time); return {X:s.X.map(v=>Math.min(v*100,100)), Y:s.Y}; }
-    function getArcCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(arcData[fam]||{})["all"]; if(!c)return null; return prepSeries(c.current,c.time); }
-    function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=`${selectedFuse.I}A`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
-
-    // Tooltips
+    // Tooltips text
     const tooltipFmt = {
       tcc:  (x,y)=> `Current: ${pretty(x)} A  |  Time: ${prettyTime(y)} s`,
       watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
@@ -515,17 +668,23 @@
     function pretty(v){ if(v>=1000) return v.toFixed(0); if(v>=100) return v.toFixed(1); if(v>=10) return v.toFixed(2); if(v>=1) return v.toFixed(3); return v.toExponential(2); }
     function prettyTime(v){ return v>=1? v.toFixed(3) : v.toExponential(2); }
 
+    // Curve getters
+    function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
+    function getWattsCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(wattsData[fam]||{})["all"]; if(!c)return null; const s=prepSeries(c.current,c.time); return {X:s.X.map(v=>Math.min(v*100,100)), Y:s.Y}; }
+    function getArcCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(arcData[fam]||{})["all"]; if(!c)return null; return prepSeries(c.current,c.time); }
+    function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=`${selectedFuse.I}A`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
+
     // Build & refresh curves charts
     let chartTcc, chartWatts, chartArc, chartCut;
     function buildCurvesCharts(){
-      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
-      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts });
-      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc });
-      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut });
+      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc, getPinned:()=>pinnedX.tcc });
+      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts, getPinned:()=>pinnedX.watts });
+      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc, getPinned:()=>pinnedX.arc });
+      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut, getPinned:()=>pinnedX.cut });
     }
-    function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); }
+    function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); setTimeout(()=>{ chartTcc?.refreshTooltip(); chartWatts?.refreshTooltip(); chartArc?.refreshTooltip(); chartCut?.refreshTooltip(); }, 0); }
 
-    // CURVES: search & selection (unchanged, with image update)
+    // CURVES: search & selection
     function searchFuses(){
       const I=Number(document.getElementById('currentInput').value);
       const V=Number(document.getElementById('voltageInput').value);
@@ -546,11 +705,29 @@
       document.getElementById('badgeFamily').textContent=selectedFuse.family;
       document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
       document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
-      // Update charts & image
       refreshCurvesCharts();
       setFuseImage('fuseImgCurves','fuseImgCurvesCap', selectedFuse.part);
-      // (Do not affect overload section from Curves selection)
     }
+
+    // Pin X handlers
+    function wirePin(group){
+      const input = document.getElementById(`pinX-${group}`);
+      const setBtn= document.getElementById(`pinX-${group}-set`);
+      const clrBtn= document.getElementById(`pinX-${group}-clear`);
+      const chartMap = { tcc: chartTcc, watts: chartWatts, arc: chartArc, cut: chartCut };
+      setBtn.addEventListener('click', ()=>{
+        const val = Number(input.value);
+        if(!Number.isFinite(val)) return;
+        pinnedX[group]=val;
+        chartMap[group]?.refreshTooltip();
+      });
+      clrBtn.addEventListener('click', ()=>{
+        pinnedX[group]=null;
+        chartMap[group]?.refreshTooltip();
+      });
+      input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ setBtn.click(); } });
+    }
+    ;['tcc','watts','arc','cut'].forEach(wirePin);
 
     // ---------- DERATING ----------
     const gSel = document.getElementById('gFactor');
@@ -580,14 +757,13 @@
         })();
         const cx=dX[idx], cy=dY[idx];
 
-        const traceDense={x:dX,y:dY,mode:'lines',type:'scatter',name:'Interpolated',line:{width:2,dash:'dot'},hoverinfo:'skip'};
-        const traceRaw={x:X,y:Y,mode:'lines+markers',type:'scatter',name:'Raw',line:{width:2},marker:{size:5}};
+        const traceDense={x:dX,y:dY,mode:'lines',type:'scatter',name:'Interpolated',line:{width:2},hoverinfo:'skip'};
         const traceCursor={x:[cx],y:[cy],mode:'markers',type:'scatter',name:'Cursor',marker:{size:12,symbol:'circle',line:{width:2}},hoverinfo:'skip'};
-        const layout={title, hovermode:'closest', dragmode:'pan', uirevision:title,
-          xaxis:{type:'linear', title:axisLabels.x, range: fixedXRange || [X[0], X[X.length-1]], gridcolor:'#f1f5f9'},
+        const layout={title, hovermode:false, dragmode:'pan', uirevision:title,
+          xaxis:{type:'linear', title:axisLabels.x, range: fixedXRange || [X[0], X[X.length-1]], gridcolor:'#f1f5f9',constrain:'domain'},
           yaxis:{type:'linear', title:axisLabels.y, gridcolor:'#f1f5f9'},
-          margin:{l:60,r:10,t:34,b:48}};
-        Plotly.newPlot(containerId, [traceDense, traceRaw, traceCursor], layout, PLOT_CONFIG);
+          margin:{l:60,r:10,t:34,b:48}, showlegend:false };
+        Plotly.newPlot(containerId, [traceDense, traceCursor], layout, PLOT_CONFIG);
         return { cx, cy };
       }
       return { plot };
@@ -600,7 +776,7 @@
 
     function computeKePercentage(Ib, areaMm2){
       if (!Number.isFinite(Ib) || !Number.isFinite(areaMm2) || areaMm2 <= 0) return NaN;
-      const J = Ib / areaMm2;                   // A/mm²
+      const J = Ib / areaMm2;
       const pctRaw = (1 - (J - 1.3) / J) * 100; // (1.3/J)*100
       if (!Number.isFinite(pctRaw)) return NaN;
       return Math.max(50, Math.min(100, pctRaw));
@@ -610,13 +786,12 @@
       return 1.0; // placeholder
     }
 
-    // ----- Recommendations (by I_derated & exact V) -----
+    // ----- Recommendations -----
     function updateRecommendations(voltageExact, Iderated, preferredPart){
       const recCard = document.getElementById('recCard');
       const recSel  = document.getElementById('recSelect');
       const recInfo = document.getElementById('recInfo');
       const applyBtn= document.getElementById('applyToCurvesBtn');
-      const currentSelected = recSel.value || null;
 
       recSel.innerHTML=''; recInfo.textContent=''; applyBtn.disabled = true;
 
@@ -646,9 +821,7 @@
         return;
       }
 
-      const recs = atV.filter(p => p.I === target)
-                      .sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
-
+      const recs = atV.filter(p => p.I === target).sort((a,b)=> a.family.localeCompare(b.family) || a.part.localeCompare(b.part));
       if(!recs.length){
         recInfo.textContent = `No parts at ${target} A found at ${voltageExact} V.`;
         recCard.style.display='block';
@@ -669,22 +842,17 @@
       document.getElementById('recImgCard').style.display='block';
       recInfo.textContent = `Recommended rating: ${target} A (Iₙext ≥ I_derated = ${fmt(Iderated,3)} A) at ${voltageExact} V.`;
 
-      const want = preferredPart ?? currentSelected;
-      if (want && Array.from(recSel.options).some(opt => opt.value === want)) {
-        recSel.value = want;
-      } else {
-        recSel.selectedIndex = 0;
-      }
+      const want = preferredPart ?? null;
+      if (want && Array.from(recSel.options).some(opt => opt.value === want)) recSel.value = want;
+      else recSel.selectedIndex = 0;
       applyBtn.disabled = !recSel.value;
 
-      // Update recommended image based on current selection
       const chosen = recSel.value;
       setFuseImage('fuseImgDerate','fuseImgDerateCap', chosen);
 
       drawOverloadChart();
     }
 
-    // Compute + render derating (no fuse required)
     function computeAndRenderDerating(optionalFuse, preferredPart){
       const fam = optionalFuse ? optionalFuse.family : (selectedFuse ? selectedFuse.family : null);
       const Ib  = Number(document.getElementById('currentInputDerate').value);
@@ -728,11 +896,10 @@
       document.getElementById('val-Iderated').textContent = isFinite(Iderated)? fmt(Iderated,3) : '—';
 
       const Vexact = Number(document.getElementById('voltageInputDerate').value);
-      const currentSel = document.getElementById('recSelect').value || null;
-      updateRecommendations(Vexact, Iderated, preferredPart ?? currentSel);
+      updateRecommendations(Vexact, Iderated, preferredPart ?? (document.getElementById('recSelect').value || null));
     }
 
-    // --- Apply to Curves button ---
+    // Apply to Curves
     document.getElementById('applyToCurvesBtn').addEventListener('click', ()=>{
       const recSel = document.getElementById('recSelect');
       const part = recSel && recSel.value;
@@ -747,9 +914,7 @@
       document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
       refreshCurvesCharts();
       setFuseImage('fuseImgCurves','fuseImgCurvesCap', selectedFuse.part);
-
       activateTab('curves');
-      // Overload section remains tied to recommended selection only
     });
 
     // Recommendations change
@@ -760,7 +925,7 @@
       applyBtn.disabled = !part;
       setFuseImage('fuseImgDerate','fuseImgDerateCap', part);
       if(idx === undefined) { drawOverloadChart(); return; }
-      computeAndRenderDerating(partsData[idx], part); // also refreshes overload chart
+      computeAndRenderDerating(partsData[idx], part);
     });
 
     // Tab behavior + resize on show
@@ -804,7 +969,7 @@
       const valid = pairs.filter(p => p.t>0 && p.c>0).sort((a,b)=> a.t - b.t);
       if(!valid.length) return NaN;
       if(tQuery<=valid[0].t) return valid[0].c;
-      if(tQuery>=valid[valid.length-1].t) return valid[valid.length-1].c;
+      if(tQuery>=valid[valid.length-1].t) return valid[valid-1].c;
 
       const lt = valid.map(p=>Math.log10(p.t));
       const lc = valid.map(p=>Math.log10(p.c));
@@ -830,7 +995,6 @@
         Plotly.purge(containerId);
         container.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">Pick a recommended fuse (above) to test overloads.</div>';
         if(hint) hint.style.display='block';
-        // Clear panel numbers
         document.getElementById('olMultLong').textContent = '—';
         document.getElementById('olAdjLong').textContent  = '—';
         document.getElementById('olMultShort').textContent= '—';
@@ -850,8 +1014,8 @@
 
       const dur = Number(document.getElementById('olTime').value);
       const imax = Number(document.getElementById('olImax').value);
-      const multLong  = Number(document.getElementById('olFreqLong').value || '1.0'); // > 1 s
-      const multShort = Number(document.getElementById('olFreqShort').value || '1.0'); // ≤ 1 s
+      const multLong  = Number(document.getElementById('olFreqLong').value || '1.0');
+      const multShort = Number(document.getElementById('olFreqShort').value || '1.0');
 
       const adjLong  = (Number.isFinite(imax) && Number.isFinite(multLong)  && multLong>0)  ? (imax / multLong)   : NaN;
       const adjShort = (Number.isFinite(imax) && Number.isFinite(multShort) && multShort>0) ? (imax / multShort)  : NaN;
@@ -860,8 +1024,8 @@
 
       const samples = Number(document.getElementById('smoothPoints')?.value) || 500;
       const {denseX, denseY} = interpolateSeries(tcc.X, tcc.Y, samples, 'log');
-      const traceDense = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'Interpolated', line:{width:2, dash:'dot'}, hoverinfo:'skip' };
-      const traceRaw   = { x:tcc.X,  y:tcc.Y,  mode:'lines+markers', type:'scatter', name:'Raw', line:{width:2}, marker:{size:6} };
+      const traceDense = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'Interpolated', line:{width:2}, hoverinfo:'skip' };
+      const traceRaw   = { x:tcc.X,  y:tcc.Y,  mode:'markers', type:'scatter', name:'Raw', marker:{size:6}, hoverinfo:'skip', visible:false }; // hidden here
 
       const dotCurve = (Number.isFinite(Icurve) && Number.isFinite(dur))
         ? { x:[Icurve], y:[dur], mode:'markers+text', type:'scatter', name:'Curve point',
@@ -880,25 +1044,23 @@
       const xMin=Math.min(...tcc.X), xMax=Math.max(...tcc.X);
       const yMin=Math.min(...tcc.Y), yMax=Math.max(...tcc.Y);
       const layout = {
-        hovermode:'closest',
+        hovermode:false,
         dragmode:'pan',
         uirevision:'overload',
-        xaxis:{type:'log', title:'Current (A)', range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9'},
+        xaxis:{type:'log', title:'Current (A)', range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9',constrain:'domain'},
         yaxis:{type:'log', title:'Time (s)',   range:[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05], gridcolor:'#f1f5f9'},
         margin:{l:60,r:10,t:34,b:48},
-        showlegend:true
+        showlegend:false
       };
 
       Plotly.newPlot(containerId, [traceDense, traceRaw, dotCurve, dotAdjusted], layout, PLOT_CONFIG);
 
-      // Populate result fields
       document.getElementById('olMultLong').textContent   = Number.isFinite(multLong)  ? multLong.toFixed(3)  : '—';
       document.getElementById('olAdjLong').textContent    = Number.isFinite(adjLong)   ? fmt(adjLong,3)       : '—';
       document.getElementById('olMultShort').textContent  = Number.isFinite(multShort) ? multShort.toFixed(3) : '—';
       document.getElementById('olAdjShort').textContent   = Number.isFinite(adjShort)  ? fmt(adjShort,3)      : '—';
       document.getElementById('olCurveI').textContent     = Number.isFinite(Icurve)    ? fmt(Icurve,3)        : '—';
 
-      // NEW STATUS RULE: curve current must be > both adjusted currents
       let resultText = 'Not able to support load ✗';
       if (Number.isFinite(Icurve) && Number.isFinite(adjLong) && Number.isFinite(adjShort)) {
         if (Icurve > adjLong && Icurve > adjShort) {
@@ -918,6 +1080,10 @@
       tempTable=tjson; areaTable=ajson; freqTable=fjson; airTable=vjson;
       partsData.forEach((p,i)=>{ p.I=Number(p.I); p.V=Number(p.V); partsIdxByKey.set(p.part, i); });
 
+      // Image "Open in new tab" anchors default to placeholder
+      document.getElementById('imgCurvesOpenNew').href = '#';
+      document.getElementById('imgDerateOpenNew').href = '#';
+
       buildCurvesCharts();
 
       // Curves events
@@ -929,16 +1095,16 @@
         selectedFuse=null;
         ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
         setFuseImage('fuseImgCurves','fuseImgCurvesCap', null);
+        // Clear any pins
+        pinnedX.tcc = pinnedX.watts = pinnedX.arc = pinnedX.cut = null;
+        ['pinX-tcc','pinX-watts','pinX-arc','pinX-cut'].forEach(id=>document.getElementById(id).value='');
       });
       document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); } drawOverloadChart(); });
       document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
       document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
       document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
 
-      // Initial derating
-      computeAndRenderDerating(null);
-
-      // Live updates for derating inputs (preserve current selection)
+      // Derating live updates
       ['currentInputDerate','voltageInputDerate','gFactor','tempInput','areaInput','airInput','freqInput','altInput']
         .forEach(id=> document.getElementById(id).addEventListener('input', ()=>computeAndRenderDerating(null)));
 
@@ -952,7 +1118,7 @@
       });
       document.getElementById('olTestBtn').addEventListener('click', drawOverloadChart);
 
-      // Set initial placeholders for images
+      // Initial placeholders for images
       setFuseImage('fuseImgCurves','fuseImgCurvesCap', null);
       setFuseImage('fuseImgDerate','fuseImgDerateCap', null);
     })();
