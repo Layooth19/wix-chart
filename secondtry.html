@@ -8,63 +8,79 @@
   <style>
     :root{ --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --brand:#2563eb; --ring:#93c5fd }
     *{ box-sizing:border-box }
-    html, body { max-width:100%; overflow-x:hidden; }
-    body{ font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; background:var(--bg); color:var(--text) }
+    html,body{ width:100%; height:100% }
+    body{
+      font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      margin:0; background:var(--bg); color:var(--text);
+      overflow-x:hidden; /* prevent horizontal scroll */
+    }
     header{ padding:22px 16px 8px; text-align:center }
     header h1{ margin:0 0 6px; font-size:22px }
     header p{ margin:0; color:var(--muted) }
-
-    /* Layout: prevent side scroll, responsive grids */
-    .wrap{ max-width:1200px; margin:0 auto; padding:16px; display:grid; gap:16px }
-    .card{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:14px; min-width:0 }
+    .wrap{
+      max-width:1280px; /* slightly narrower to avoid overflow on small laptops */
+      margin:0 auto; padding:16px; display:grid; gap:16px
+    }
+    .card{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:14px }
 
     /* Tabs */
-    .tabs{ display:flex; gap:8px; border-bottom:1px solid #e5e7eb; padding:0 4px; overflow:auto; }
+    .tabs{ display:flex; gap:8px; border-bottom:1px solid #e5e7eb; padding:0 4px; overflow:auto }
     .tabbtn{ appearance:none; border:0; background:transparent; padding:10px 14px; border-radius:10px 10px 0 0; font-weight:600; cursor:pointer; color:#374151; white-space:nowrap }
     .tabbtn[aria-selected="true"]{ background:#fff; color:#111827; box-shadow:0 -2px 0 #fff, 0 0 0 1px #e5e7eb }
     .tabpanel{ display:none }
     .tabpanel[aria-hidden="false"]{ display:block }
 
     /* Controls / layout */
-    .controls{ display:grid; gap:10px; min-width:0 }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; min-width:0 }
-    .field{ flex:1 1 220px; min-width:0 }
-    label{ font-size:12px; font-weight:600; color:#6b7280; display:block; margin-bottom:6px }
-    input,select{ width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; font-size:14px; outline:none; min-width:0; max-width:100% }
+    .controls{ display:grid; gap:10px }
+    .row{ display:flex; gap:10px; flex-wrap:wrap }
+    .field{ flex:1 1 220px; min-width:220px }
+    label{ font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:6px }
+    input,select{ width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; font-size:14px; outline:none }
     input:focus,select:focus{ box-shadow:0 0 0 3px var(--ring); border-color:#bfdbfe }
     button{ background:var(--brand); color:#fff; border:0; padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer }
     .ghost{ background:#eef2ff; color:#3730a3 }
     .hint{ color:var(--muted); font-size:12px; margin:4px 2px 0 }
     .error{ color:#b91c1c; margin-top:6px; font-size:13px }
 
-    #fuseSelect, #recSelect{ height:180px; max-width:100% }
+    #fuseSelect, #recSelect{ height:180px; width:100% }
 
-    .grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; min-width:0 }
-    .panel{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:12px; display:flex; flex-direction:column; min-width:0 }
+    /* 2-col (wraps to 1-col on narrow screens) */
+    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    @media (max-width: 1024px){
+      .grid{ grid-template-columns:1fr }
+    }
+
+    .panel{ background:var(--card); border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.06); padding:12px; display:flex; flex-direction:column }
     .panel h3{ margin:2px 6px 8px; font-size:16px; color:#111827 }
-    .chart{ height:420px; position:relative; width:100% }
-    .chart-sm{ height:300px; position:relative; width:100% }
+    .chart{ height:420px; position:relative }
+    .chart-sm{ height:300px; position:relative }
 
     .badges{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px }
     .badge{ display:inline-flex; gap:6px; align-items:center; background:#f1f5f9; border-radius:999px; padding:4px 10px; font-size:12px; color:#0f172a }
-    .ctrlrow{ display:flex; justify-content:space-between; align-items:center; margin:2px 8px 8px; gap:8px }
+    .ctrlrow{ display:flex; justify-content:space-between; align-items:center; margin:2px 8px 8px }
     .small{ font-size:12px; color:#6b7280 }
 
-    .grid-derate{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; min-width:0 }
+    .grid-derate{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    @media (max-width: 1024px){
+      .grid-derate{ grid-template-columns:1fr }
+    }
     .result-card{ display:grid; gap:8px }
-    .kv{ display:flex; justify-content:space-between; gap:12px; font-size:14px; border-bottom:1px dashed #e5e7eb; padding:6px 0 }
+    .kv{ display:flex; justify-content:space-between; gap:12px; font-size:14px; border-bottom:1px dashed #e5e7eb; padding:6px 0; align-items:center }
     .kv strong{ color:#111827 }
     .big{ font-size:18px; font-weight:700 }
 
     .actions-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
 
-    /* Overload side-by-side layout: collapses on small screens */
-    .overload-grid{ display:grid; grid-template-columns:2fr 1fr; gap:16px; min-width:0 }
-    @media (max-width: 1100px){
-      .grid, .grid-derate{ grid-template-columns:1fr; }
-      .overload-grid{ grid-template-columns:1fr; }
-      .wrap{ padding:12px; }
+    /* --- Image block --- */
+    .img-panel{ display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap }
+    .imgbox{
+      width:260px; max-width:100%;
+      border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#fff;
     }
+    .imgbox img{ width:100%; height:auto; display:block; object-fit:contain; background:#fff }
+    .img-meta{ font-size:12px; color:#6b7280; margin-top:4px }
+    .img-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; color:#374151 }
   </style>
 </head>
 <body>
@@ -103,6 +119,7 @@
             <select id="fuseSelect" size="8"></select>
             <div class="hint" id="infoText"></div>
           </div>
+
           <div class="badges">
             <span class="badge"><strong>Part:</strong> <span id="badgePart">—</span></span>
             <span class="badge"><strong>Family:</strong> <span id="badgeFamily">—</span></span>
@@ -111,6 +128,23 @@
             <span class="badge"><strong>Smoothing:</strong> <input id="smoothPoints" type="range" min="100" max="1000" step="50" value="500" /></span>
           </div>
           <div class="error" id="errorMsg"></div>
+        </div>
+      </section>
+
+      <!-- Fuse image (Curves selection) -->
+      <section class="panel">
+        <div class="ctrlrow"><h3>Fuse Photo</h3><span class="small">Auto-updates with the selected fuse</span></div>
+        <div class="img-panel">
+          <div class="imgbox">
+            <img id="fuseImg" alt="Fuse photo" />
+          </div>
+          <div>
+            <div class="img-actions">
+              <a id="imgOpen" href="#" target="_blank" rel="noopener" class="ghost" style="text-decoration:none;padding:8px 10px;border-radius:8px">View full size</a>
+              <span class="mono" id="imgPath">—</span>
+            </div>
+            <div class="img-meta" id="imgCaption">No fuse selected.</div>
+          </div>
         </div>
       </section>
 
@@ -223,70 +257,6 @@
           <div class="hint" id="recInfo"></div>
         </div>
       </section>
-
-      <!-- INFLUENCE OF OVERLOADS (suitability test) -->
-      <section class="card" id="overloadCard">
-        <div class="ctrlrow">
-          <h3>Influence of overloads (suitability test)</h3>
-          <span class="small">Uses TCC of the currently selected <em>recommended</em> fuse</span>
-        </div>
-        <div class="controls">
-          <div class="row">
-            <div class="field">
-              <label for="olImax">Imax (maximum load current, A)</label>
-              <input type="number" id="olImax" placeholder="e.g., 1500" min="0" step="1" />
-            </div>
-            <div class="field">
-              <label for="olTime">Overload duration (s)</label>
-              <input type="number" id="olTime" placeholder="e.g., 10" min="0" step="0.01" />
-            </div>
-          </div>
-          <div class="row">
-            <div class="field">
-              <label for="olFreqLong">Frequency of overload (> 1 s)</label>
-              <select id="olFreqLong">
-                <option value="0.8">Less than 1 time per month</option>
-                <option value="0.7">Less than 2 times per week</option>
-                <option value="0.6">Several times a day</option>
-                <option value="1.0" selected>No</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="olFreqShort">Frequency of overload (≤ 1 s)</label>
-              <select id="olFreqShort">
-                <option value="0.7">Less than 1 time per month</option>
-                <option value="0.6">Less than 2 times per week</option>
-                <option value="0.5">Several times a day</option>
-                <option value="1.0" selected>No</option>
-              </select>
-            </div>
-            <div class="field" style="align-self:flex-end">
-              <button id="olTestBtn" type="button">Test Overload Suitability</button>
-            </div>
-          </div>
-
-          <div class="hint" id="olHint">Pick a recommended fuse above to test overload suitability.</div>
-
-          <div class="overload-grid">
-            <div class="panel">
-              <div class="ctrlrow"><h3>Overload TCC (Recommended Fuse)</h3><span class="small">x: Current (A) • y: Time (s)</span></div>
-              <div id="chart-overload" class="chart"></div>
-            </div>
-            <div class="panel">
-              <div class="ctrlrow"><h3>Result</h3><span class="small">Live as you edit</span></div>
-              <div class="result-card">
-                <div class="kv"><span>Multiplier (> 1 s)</span><strong id="olMultLong">—</strong></div>
-                <div class="kv"><span>Imax / multiplier (> 1 s) (A)</span><strong id="olAdjLong">—</strong></div>
-                <div class="kv"><span>Multiplier (≤ 1 s)</span><strong id="olMultShort">—</strong></div>
-                <div class="kv"><span>Imax / multiplier (≤ 1 s) (A)</span><strong id="olAdjShort">—</strong></div>
-                <div class="kv"><span>Curve current at t (A)</span><strong id="olCurveI">—</strong></div>
-                <div class="kv big"><span>Status</span><strong id="olResult">—</strong></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      <!-- /INFLUENCE OF OVERLOADS -->
     </section>
   </main>
 
@@ -459,7 +429,82 @@
     }
     function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); }
 
-    // CURVES: search & selection (unchanged)
+    // ======================= IMAGE HANDLING =======================
+    const IMG_DIRS = ['fuse_images','fuse_images2'];
+    const IMG_EXTS = ['.jpg','.jpeg','.png','.webp'];
+
+    const PLACEHOLDER_SVG =
+      'data:image/svg+xml;utf8,' +
+      encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="640" height="400">
+          <rect width="100%" height="100%" fill="#f8fafc"/>
+          <g fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="16">
+            <text x="50%" y="45%" text-anchor="middle">No image available</text>
+            <text x="50%" y="58%" text-anchor="middle">(check fuse_images/ and fuse_images2/)</text>
+          </g>
+        </svg>`);
+
+    function filenameCandidates(part){
+      if(!part) return [];
+      const raw = String(part).trim();
+      const variants = [
+        raw,
+        raw.replace(/\s+/g,'_'),
+        raw.replace(/\s+/g,'')
+      ];
+      const combos = [];
+      for(const dir of IMG_DIRS){
+        for(const v of variants){
+          for(const ext of IMG_EXTS){
+            combos.push(`${dir}/${v}${ext}`);
+          }
+        }
+      }
+      return combos;
+    }
+
+    // Try image sources sequentially; onerror advances to next
+    function loadImageForPart(part){
+      const img = document.getElementById('fuseImg');
+      const caption = document.getElementById('imgCaption');
+      const pathEl = document.getElementById('imgPath');
+      const openEl = document.getElementById('imgOpen');
+
+      const candidates = filenameCandidates(part);
+      if(!candidates.length){
+        img.src = PLACEHOLDER_SVG;
+        caption.textContent = 'No fuse selected.';
+        pathEl.textContent = '—';
+        openEl.href = '#';
+        openEl.setAttribute('aria-disabled','true');
+        return;
+      }
+
+      let idx = 0;
+      const tryNext = () => {
+        if(idx >= candidates.length){
+          img.src = PLACEHOLDER_SVG;
+          caption.textContent = `No image found for part "${part}".`;
+          pathEl.textContent = '—';
+          openEl.href = '#';
+          openEl.setAttribute('aria-disabled','true');
+          return;
+        }
+        const src = candidates[idx++];
+        img.onerror = tryNext;
+        img.onload = () => {
+          caption.textContent = `Showing image for part “${part}”.`;
+          pathEl.textContent = src;
+          openEl.href = src;
+          openEl.removeAttribute('aria-disabled');
+        };
+        img.src = src;
+      };
+      tryNext();
+    }
+    // ============================================================
+
+    // CURVES: search & selection (unchanged + image hook)
     function searchFuses(){
       const I=Number(document.getElementById('currentInput').value);
       const V=Number(document.getElementById('voltageInput').value);
@@ -481,15 +526,17 @@
       document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
       document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
       refreshCurvesCharts();
-      // (Do not affect overload section from Curves selection)
+      loadImageForPart(selectedFuse.part); // <-- update image
     }
 
     // ---------- DERATING ----------
+    // G options 1.0 → 2.0 step 0.1
     const gSel = document.getElementById('gFactor');
     (function fillG(){ for(let g=1.0; g<=2.0001; g+=0.1){ const opt=document.createElement('option'); opt.value=g.toFixed(1); opt.textContent=g.toFixed(1); gSel.appendChild(opt);} })();
 
     function pickPairs(table, family){ if(!table) return null; if(family && table[family]) return table[family]; const keys=Object.keys(table); return keys.length? table[keys[0]] : null; }
 
+    // Small factor chart (linear axes) with optional fixed X range
     function buildFactorChart(containerId, title, axisLabels, fixedXRange=null){
       const container=document.getElementById(containerId);
       function plot(pairs, xCurrent){
@@ -504,6 +551,7 @@
           else if(j>=X.length){dX.push(X.at(-1)); dY.push(Y.at(-1));}
           else {const t=(xq-X[j-1])/(X[j]-X[j-1]); dX.push(xq); dY.push(Y[j-1]+t*(Y[j]-Y[j-1]));}
         }
+        // cursor position (nearest)
         const idx=(()=>{
           if(xCurrent==null) return 0;
           let lo=0, hi=dX.length-1; if(xCurrent<=dX[0]) return 0; if(xCurrent>=dX[hi]) return hi;
@@ -530,38 +578,36 @@
     const chart_kV = buildFactorChart('chart-kV', 'Air Speed Factor (kV)', {x:'Air speed (m/s)', y:'kV'});
     const chart_kF = buildFactorChart('chart-kF', 'Frequency Factor (kF)', {x:'Frequency (Hz)', y:'kF'});
 
+    // Ke percentage from current density (your corrected formula)
     function computeKePercentage(Ib, areaMm2){
       if (!Number.isFinite(Ib) || !Number.isFinite(areaMm2) || areaMm2 <= 0) return NaN;
       const J = Ib / areaMm2;                   // A/mm²
-      const pctRaw = (1 - (J - 1.3) / J) * 100; // (1.3/J)*100
+      const pctRaw = (1 - (J - 1.3) / J) * 100; // == (1.3/J)*100
       if (!Number.isFinite(pctRaw)) return NaN;
-      return Math.max(50, Math.min(100, pctRaw));
+      return Math.max(50, Math.min(100, pctRaw)); // clamp to [50, 100]
     }
 
     function getAltitudeFactor(altMeters){
-      return 1.0; // placeholder
+      // TODO: Replace with your altitude derating logic
+      return 1.0;
     }
 
     // ----- Recommendations (by I_derated & exact V) -----
-    function updateRecommendations(voltageExact, Iderated, preferredPart){
+    function updateRecommendations(voltageExact, Iderated){
       const recCard = document.getElementById('recCard');
       const recSel  = document.getElementById('recSelect');
       const recInfo = document.getElementById('recInfo');
       const applyBtn= document.getElementById('applyToCurvesBtn');
-      const currentSelected = recSel.value || null;
-
       recSel.innerHTML=''; recInfo.textContent=''; applyBtn.disabled = true;
 
       if(!Number.isFinite(voltageExact) || !Number.isFinite(Iderated)){
         recCard.style.display='none';
-        drawOverloadChart();
         return;
       }
 
       const atV = partsData.filter(p => p.V === voltageExact);
       if(!atV.length){
         recCard.style.display='none';
-        drawOverloadChart();
         return;
       }
 
@@ -571,7 +617,6 @@
       if (target === undefined){
         recInfo.textContent = `No fuse rating ≥ ${fmt(Iderated,3)} A at ${voltageExact} V.`;
         recCard.style.display='block';
-        drawOverloadChart();
         return;
       }
 
@@ -581,7 +626,6 @@
       if(!recs.length){
         recInfo.textContent = `No parts at ${target} A found at ${voltageExact} V.`;
         recCard.style.display='block';
-        drawOverloadChart();
         return;
       }
 
@@ -595,20 +639,16 @@
       recSel.appendChild(frag);
       recCard.style.display='block';
       recInfo.textContent = `Recommended rating: ${target} A (Iₙext ≥ I_derated = ${fmt(Iderated,3)} A) at ${voltageExact} V.`;
+      recSel.selectedIndex = 0;
 
-      const want = preferredPart ?? currentSelected;
-      if (want && Array.from(recSel.options).some(opt => opt.value === want)) {
-        recSel.value = want;
-      } else {
-        recSel.selectedIndex = 0;
-      }
-      applyBtn.disabled = !recSel.value;
-
-      drawOverloadChart();
+      // When recommendations appear, also preview image for the first one
+      loadImageForPart(recs[0].part);
+      applyBtn.disabled = false;
     }
 
     // Compute + render derating (no fuse required)
-    function computeAndRenderDerating(optionalFuse, preferredPart){
+    function computeAndRenderDerating(optionalFuse){
+      // If a fuse is provided (e.g., selected in recommendations), use its family; else use generic (first table)
       const fam = optionalFuse ? optionalFuse.family : (selectedFuse ? selectedFuse.family : null);
       const Ib  = Number(document.getElementById('currentInputDerate').value);
       const G   = Number(document.getElementById('gFactor').value || 1.0);
@@ -619,10 +659,10 @@
       const f = Number(document.getElementById('freqInput').value);
       const h = Number(document.getElementById('altInput').value);
 
-      const tempPairs = pickPairs(tempTable, fam);
-      const kePairs   = pickPairs(areaTable, fam);
-      const airPairs  = pickPairs(airTable, fam);
-      const freqPairs = pickPairs(freqTable, fam);
+      const tempPairs = pickPairs(tempTable, fam);   // x: °C  → kT
+      const kePairs   = pickPairs(areaTable, fam);   // x: %   → Ke
+      const airPairs  = pickPairs(airTable, fam);    // x: m/s → kV
+      const freqPairs = pickPairs(freqTable, fam);   // x: Hz  → kF
 
       const kT   = Number.isFinite(t) && tempPairs ? linInterp(tempPairs, t) : NaN;
       const kePct = (Number.isFinite(Ib) && Number.isFinite(a)) ? computeKePercentage(Ib, a) : NaN;
@@ -631,11 +671,13 @@
       const kF   = Number.isFinite(f) && freqPairs ? linInterp(freqPairs, f) : NaN;
       const kAlt = Number.isFinite(h) ? getAltitudeFactor(h) : 1.0;
 
+      // Update factor charts (always visible)
       chart_kT.plot(tempPairs, Number.isFinite(t)?t:null);
       chart_kA.plot(kePairs, Number.isFinite(kePct)? kePct : null);
       chart_kV.plot(airPairs,  Number.isFinite(v)?v:null);
       chart_kF.plot(freqPairs, Number.isFinite(f)?f:null);
 
+      // Results panel
       document.getElementById('val-kT').textContent   = isFinite(kT)?  fmt(kT,3): '—';
       document.getElementById('val-kA').textContent   = isFinite(kA)?  fmt(kA,3): '—';
       document.getElementById('val-kePct').textContent= isFinite(kePct)? `${kePct.toFixed(1)} %` : '—';
@@ -650,9 +692,9 @@
       const Iderated = isFinite(denom) ? (Ib * G) / denom : NaN;
       document.getElementById('val-Iderated').textContent = isFinite(Iderated)? fmt(Iderated,3) : '—';
 
+      // Update recommendations live
       const Vexact = Number(document.getElementById('voltageInputDerate').value);
-      const currentSel = document.getElementById('recSelect').value || null;
-      updateRecommendations(Vexact, Iderated, preferredPart ?? currentSel);
+      updateRecommendations(Vexact, Iderated);
     }
 
     // --- Apply to Curves button ---
@@ -664,24 +706,28 @@
       if(idx === undefined) return;
 
       selectedFuse = partsData[idx];
+      // update badges
       document.getElementById('badgePart').textContent=selectedFuse.part;
       document.getElementById('badgeFamily').textContent=selectedFuse.family;
       document.getElementById('badgeRating').textContent=`${selectedFuse.I}A`;
       document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
       refreshCurvesCharts();
+      loadImageForPart(selectedFuse.part); // <-- image also follows
 
+      // switch to Curves tab
       activateTab('curves');
-      // Overload section remains tied to recommended selection only
     });
 
-    // Recommendations change
+    // Recommendations change: update derating curves family AND image preview
     document.getElementById('recSelect').addEventListener('change', (e)=>{
       const part = e.target.value;
       const idx = partsIdxByKey.get(part);
       const applyBtn = document.getElementById('applyToCurvesBtn');
       applyBtn.disabled = !part;
-      if(idx === undefined) { drawOverloadChart(); return; }
-      computeAndRenderDerating(partsData[idx], part); // also refreshes overload chart
+      if(idx === undefined) { computeAndRenderDerating(null); return; }
+      const fuse = partsData[idx];
+      computeAndRenderDerating(fuse);
+      loadImageForPart(fuse.part); // preview image for highlighted recommendation
     });
 
     // Tab behavior + resize on show
@@ -692,143 +738,13 @@
       panelCurves.setAttribute('aria-hidden', isCurves?'false':'true');
       panelDerate.setAttribute('aria-hidden', isCurves?'true':'false');
       const ids = isCurves ? ['chart-tcc','chart-watts','chart-arc','chart-cutoff']
-                           : ['chart-kT','chart-kA','chart-kV','chart-kF','chart-overload'];
+                           : ['chart-kT','chart-kA','chart-kV','chart-kF'];
       ids.forEach(id=>{ const el=document.getElementById(id); if(el && el.children.length){ Plotly.Plots.resize(id); }});
+      // Also ensure image scales correctly on tab switch
+      const img = document.getElementById('fuseImg'); if(img) { img.style.maxWidth='100%'; }
     }
     tabCurves.addEventListener('click', ()=>activateTab('curves'));
     tabDerate.addEventListener('click', ()=>activateTab('derate'));
-
-    // ---------- OVERLOAD HELPERS ----------
-    function getRecommendedFuse(){
-      const recSel = document.getElementById('recSelect');
-      const part = recSel && recSel.value;
-      if(!part) return null;
-      const idx = partsIdxByKey.get(part);
-      if(idx === undefined) return null;
-      return partsData[idx];
-    }
-
-    function getTccCurveForPart(partObj){
-      if(!partObj) return null;
-      const fam = partObj.family;
-      const keys = normalizeRatingKey(partObj.I);
-      const famObj = tccData[fam] || {};
-      const key = keys.find(k=>famObj[k]);
-      if(!key) return null;
-      const c = famObj[key];
-      return prepSeries(c.current, c.time);
-    }
-
-    function currentAtTimeFromTcc(Xcurr, Ytime, tQuery){
-      if(!Array.isArray(Xcurr) || !Array.isArray(Ytime) || Xcurr.length!==Ytime.length || Xcurr.length<2) return NaN;
-      const pairs = Xcurr.map((c,i)=>({t:Ytime[i], c}));
-      const valid = pairs.filter(p => p.t>0 && p.c>0).sort((a,b)=> a.t - b.t);
-      if(!valid.length) return NaN;
-      if(tQuery<=valid[0].t) return valid[0].c;
-      if(tQuery>=valid[valid.length-1].t) return valid[valid.length-1].c;
-
-      const lt = valid.map(p=>Math.log10(p.t));
-      const lc = valid.map(p=>Math.log10(p.c));
-      const q  = Math.log10(tQuery);
-
-      let lo=0, hi=lt.length-1, j=lt.length-1;
-      while(lo<=hi){ const m=(lo+hi)>>1; if(lt[m]>=q){ j=m; hi=m-1; } else { lo=m+1; } }
-      if(j===0) return 10**lc[0];
-      if(j>=lt.length) return 10**lc[lc.length-1];
-      const t = (q - lt[j-1])/(lt[j]-lt[j-1]);
-      const logC = lc[j-1] + t*(lc[j]-lc[j-1]);
-      return 10**logC;
-    }
-
-    function drawOverloadChart(){
-      const containerId = 'chart-overload';
-      const container = document.getElementById(containerId);
-      const hint = document.getElementById('olHint');
-      if(!container) return;
-
-      const recFuse = getRecommendedFuse();
-      if(!recFuse){
-        Plotly.purge(containerId);
-        container.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">Pick a recommended fuse (above) to test overloads.</div>';
-        if(hint) hint.style.display='block';
-        // Clear panel numbers
-        document.getElementById('olMultLong').textContent = '—';
-        document.getElementById('olAdjLong').textContent  = '—';
-        document.getElementById('olMultShort').textContent= '—';
-        document.getElementById('olAdjShort').textContent = '—';
-        document.getElementById('olCurveI').textContent   = '—';
-        document.getElementById('olResult').textContent   = '—';
-        return;
-      }
-      if(hint) hint.style.display='none';
-
-      const tcc = getTccCurveForPart(recFuse);
-      if(!tcc || !tcc.X || !tcc.X.length){
-        Plotly.purge(containerId);
-        container.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">No TCC data available for the selected recommended fuse.</div>';
-        return;
-      }
-
-      const dur = Number(document.getElementById('olTime').value);
-      const imax = Number(document.getElementById('olImax').value);
-      const multLong  = Number(document.getElementById('olFreqLong').value || '1.0'); // > 1 s
-      const multShort = Number(document.getElementById('olFreqShort').value || '1.0'); // ≤ 1 s
-
-      const adjLong  = (Number.isFinite(imax) && Number.isFinite(multLong)  && multLong>0)  ? (imax / multLong)   : NaN;
-      const adjShort = (Number.isFinite(imax) && Number.isFinite(multShort) && multShort>0) ? (imax / multShort)  : NaN;
-
-      const Icurve = (Number.isFinite(dur) && dur>0) ? currentAtTimeFromTcc(tcc.X, tcc.Y, dur) : NaN;
-
-      const samples = Number(document.getElementById('smoothPoints')?.value) || 500;
-      const {denseX, denseY} = interpolateSeries(tcc.X, tcc.Y, samples, 'log');
-      const traceDense = { x:denseX, y:denseY, mode:'lines', type:'scatter', name:'Interpolated', line:{width:2, dash:'dot'}, hoverinfo:'skip' };
-      const traceRaw   = { x:tcc.X,  y:tcc.Y,  mode:'lines+markers', type:'scatter', name:'Raw', line:{width:2}, marker:{size:6} };
-
-      const dotCurve = (Number.isFinite(Icurve) && Number.isFinite(dur))
-        ? { x:[Icurve], y:[dur], mode:'markers+text', type:'scatter', name:'Curve point',
-            marker:{size:14, symbol:'circle', line:{width:2}, color:'green'},
-            text:[`I=${pretty(Icurve)} A<br>t=${prettyTime(dur)} s`], textposition:'top center', hoverinfo:'skip' }
-        : { x:[], y:[], type:'scatter', mode:'markers', name:'Curve point', visible:false };
-
-      // Keep one "X" marker for the duration entered (use the more conservative of the two adjusted currents for display)
-      const displayAdj = (Number.isFinite(adjLong) && Number.isFinite(adjShort)) ? Math.max(adjLong, adjShort)
-                        : (Number.isFinite(adjLong) ? adjLong
-                        : (Number.isFinite(adjShort) ? adjShort : NaN));
-      const dotAdjusted = (Number.isFinite(displayAdj) && Number.isFinite(dur))
-        ? { x:[displayAdj], y:[dur], mode:'markers', type:'scatter', name:'Max(Imax/mult)',
-            marker:{size:12, symbol:'x', line:{width:2}}, hoverinfo:'skip' }
-        : { x:[], y:[], type:'scatter', mode:'markers', name:'Max(Imax/mult)', visible:false };
-
-      const xMin=Math.min(...tcc.X), xMax=Math.max(...tcc.X);
-      const yMin=Math.min(...tcc.Y), yMax=Math.max(...tcc.Y);
-      const layout = {
-        hovermode:'closest',
-        dragmode:'pan',
-        uirevision:'overload',
-        xaxis:{type:'log', title:'Current (A)', range:[Math.log10(xMin)-0.05, Math.log10(xMax)+0.05], gridcolor:'#f1f5f9'},
-        yaxis:{type:'log', title:'Time (s)',   range:[Math.log10(yMin)-0.05, Math.log10(yMax)+0.05], gridcolor:'#f1f5f9'},
-        margin:{l:60,r:10,t:34,b:48},
-        showlegend:true
-      };
-
-      Plotly.newPlot(containerId, [traceDense, traceRaw, dotCurve, dotAdjusted], layout, PLOT_CONFIG);
-
-      // Populate result fields
-      document.getElementById('olMultLong').textContent   = Number.isFinite(multLong)  ? multLong.toFixed(3)  : '—';
-      document.getElementById('olAdjLong').textContent    = Number.isFinite(adjLong)   ? fmt(adjLong,3)       : '—';
-      document.getElementById('olMultShort').textContent  = Number.isFinite(multShort) ? multShort.toFixed(3) : '—';
-      document.getElementById('olAdjShort').textContent   = Number.isFinite(adjShort)  ? fmt(adjShort,3)      : '—';
-      document.getElementById('olCurveI').textContent     = Number.isFinite(Icurve)    ? fmt(Icurve,3)        : '—';
-
-      // NEW STATUS RULE: curve current must be > both adjusted currents
-      let resultText = 'Not able to support load ✗';
-      if (Number.isFinite(Icurve) && Number.isFinite(adjLong) && Number.isFinite(adjShort)) {
-        if (Icurve > adjLong && Icurve > adjShort) {
-          resultText = 'Able to support overload ✓';
-        }
-      }
-      document.getElementById('olResult').textContent = resultText;
-    }
 
     // Boot
     (async () => {
@@ -840,6 +756,7 @@
       tempTable=tjson; areaTable=ajson; freqTable=fjson; airTable=vjson;
       partsData.forEach((p,i)=>{ p.I=Number(p.I); p.V=Number(p.V); partsIdxByKey.set(p.part, i); });
 
+      // Curves tab charts (render empty until a fuse is applied/selected)
       buildCurvesCharts();
 
       // Curves events
@@ -850,28 +767,24 @@
         document.getElementById('fuseListContainer').style.display='none';
         selectedFuse=null;
         ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
+        loadImageForPart(null);
       });
-      document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); } drawOverloadChart(); });
+      document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); }});
       document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
       document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
       document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
 
-      // Initial derating
+      // Derating: initial draw
       computeAndRenderDerating(null);
 
-      // Live updates for derating inputs (preserve current selection)
+      // Live updates for derating inputs
       ['currentInputDerate','voltageInputDerate','gFactor','tempInput','areaInput','airInput','freqInput','altInput']
         .forEach(id=> document.getElementById(id).addEventListener('input', ()=>computeAndRenderDerating(null)));
 
       document.getElementById('updateRecsBtn').addEventListener('click', ()=>computeAndRenderDerating(null));
 
-      // Overload inputs
-      ['olImax','olTime','olFreqLong','olFreqShort'].forEach(id=>{
-        const el = document.getElementById(id);
-        el.addEventListener('input', drawOverloadChart);
-        el.addEventListener('change', drawOverloadChart);
-      });
-      document.getElementById('olTestBtn').addEventListener('click', drawOverloadChart);
+      // Initialize image to placeholder
+      loadImageForPart(null);
     })();
   </script>
 </body>
