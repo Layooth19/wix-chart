@@ -55,14 +55,14 @@
 
     .actions-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
 
-    /* Image panels (unchanged) */
+    /* Image panels */
     .imgpanel{ display:flex; flex-direction:column; gap:8px }
     .imgbox{ width:100%; height:300px; background:#f8fafc; border:1px dashed #e5e7eb; border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
     .imgbox img{ max-width:100%; max-height:100%; object-fit:contain; cursor:zoom-in; }
     .imgcaption{ font-size:12px; color:#6b7280; text-align:center }
     .imgactions{ display:flex; justify-content:flex-end; gap:10px; margin:0 4px 6px; }
 
-    /* Fullscreen modal (unchanged) */
+    /* Fullscreen modal */
     .modal{ position:fixed; inset:0; background:rgba(15,23,42,.75); display:none; align-items:center; justify-content:center; z-index:50; }
     .modal.open{ display:flex; }
     .modal-inner{ max-width:min(95vw,1400px); max-height:90vh; background:#0b1020; padding:12px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.4); }
@@ -127,7 +127,7 @@
             <span class="badge"><strong>Family:</strong> <span id="badgeFamily">—</span></span>
             <span class="badge"><strong>Rating:</strong> <span id="badgeRating">—</span></span>
             <span class="badge"><strong>Voltage:</strong> <span id="badgeVoltage">—</span></span>
-            <span class="badge"><strong>Smoothing:</strong> <input id="smoothPoints" type="range" min="100" max="1200" step="50" value="600" /></span>
+            <span class="badge"><strong>Smoothing:</strong> <input id="smoothPoints" type="range" min="200" max="1400" step="50" value="800" /></span>
           </div>
           <div class="error" id="errorMsg"></div>
         </div>
@@ -364,7 +364,7 @@
     </section>
   </main>
 
-  <!-- Fullscreen Image Modal (unchanged) -->
+  <!-- Fullscreen Image Modal -->
   <div class="modal" id="imgModal" role="dialog" aria-modal="true" aria-labelledby="imgModalTitle">
     <div class="modal-inner">
       <div class="modal-bar">
@@ -413,7 +413,7 @@
     function normalizeRatingKey(I){ const base=`${I}A`; return [base, `${base}*`, `${I} A`]; }
     function formatOption(p){ return `${p.part}  —  ${p.family}  •  ${p.I}A  •  ${p.V}V`; }
 
-    // ---------------- IMAGE HELPERS (unchanged) ----------------
+    // ---------------- IMAGE HELPERS ----------------
     const PLACEHOLDER_SVG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="100%" height="100%" fill="#f8fafc"/><rect x="20" y="20" width="560" height="360" fill="none" stroke="#e5e7eb" stroke-dasharray="6 6" rx="12"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="16" fill="#94a3b8">No image available</text></svg>`);
 
     function setFuseImage(imgId, captionId, part){
@@ -431,7 +431,7 @@
       img.src = src1;
     }
 
-    // Modal (unchanged)
+    // Modal
     const modal = document.getElementById('imgModal');
     const modalImg = document.getElementById('modalImg');
     const modalOpenNew = document.getElementById('modalOpenNew');
@@ -507,12 +507,8 @@
       }
     }
 
-    // Tooltip (custom) — works for hover and pinned
-    function attachTooltip(gd, cacheKey, tooltipFormatter, getPinned, getRaw){
-      const tip=document.createElement('div');
-      Object.assign(tip.style,{position:'fixed',background:'rgba(255,255,255,0.95)',border:'1px solid #cbd5e1',borderRadius:'6px',padding:'6px 10px',fontSize:'13px',pointerEvents:'none',whiteSpace:'nowrap',boxShadow:'0 2px 8px rgba(0,0,0,.08)',display:'none',zIndex:20});
-      document.body.appendChild(tip);
-
+    // ----- Annotation-based tracker (hover + pinned) -----
+    function attachTracker(gd, key, labelFn, getPinned, getRaw){
       function dataXFromPage(pageX){
         const xa=gd._fullLayout.xaxis;
         const x0 = xa._offset + window.scrollX;
@@ -520,53 +516,50 @@
         return (xa.type==='log') ? Math.pow(10, xa.range[0] + rx*(xa.range[1]-xa.range[0]))
                                  : xa.range[0] + rx*(xa.range[1]-xa.range[0]);
       }
-      function pageXFromData(x){
-        const xa=gd._fullLayout.xaxis;
-        const x0 = xa._offset + window.scrollX;
-        if(xa.type==='log'){
-          const rx=(Math.log10(x)-xa.range[0])/(xa.range[1]-xa.range[0]);
-          return x0 + rx*xa._length;
-        } else {
-          const rx=(x-xa.range[0])/(xa.range[1]-xa.range[0]);
-          return x0 + rx*xa._length;
-        }
-      }
-
-      function renderAtX(x, exact=true){
+      function renderAtX(x){
         const {X,Y,mode} = getRaw();
-        if(!X.length){ tip.style.display='none'; return; }
-        const p = exact ? yAtX_exact(X,Y,x,mode) : (()=>{ const d=denseCache[cacheKey]; if(!d.X.length) return {x:NaN,y:NaN}; let lo=0, hi=d.X.length-1; while(lo<hi){ const m=(lo+hi)>>1; if(d.X[m]<x) lo=m+1; else hi=m; } const cx=d.X[lo]; const cy=d.Y[lo]; return {x:cx,y:cy}; })();
-        if(!Number.isFinite(p.y)){ tip.style.display='none'; return; }
-        Plotly.restyle(gd, {x:[[p.x]], y:[[p.y]]}, [CURSOR_TRACE_INDEX]);
-        tip.textContent = tooltipFormatter(p.x,p.y);
-        const px = pageXFromData(p.x);
-        const py = gd._fullLayout.yaxis._offset + window.scrollY + 12;
-        const L = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, px + 12 - window.scrollX));
-        const T = Math.max(8, Math.min(window.innerHeight - tip.offsetHeight - 8, py - window.scrollY));
-        tip.style.left=L+'px'; tip.style.top=T+'px'; tip.style.display='block';
+        if(!X.length) return;
+        const p = yAtX_exact(X,Y,x,mode);
+        if(!Number.isFinite(p.y)) return;
+        // move orange cursor dot
+        Plotly.restyle(gd, {x:[[p.x]], y:[[p.y]], marker:[{size:12, symbol:'circle', line:{width:2}, color:'#f97316'}]}, [CURSOR_TRACE_INDEX]);
+        // annotation just below the dot
+        const ann = {
+          x:p.x, y:p.y, xref:'x', yref:'y',
+          text:labelFn(p.x,p.y),
+          showarrow:false,
+          xanchor:'center', yanchor:'top',
+          yshift:12, // show below the dot
+          font:{size:12, color:'#0f172a'},
+          bgcolor:'rgba(255,255,255,0.96)',
+          bordercolor:'#cbd5e1', borderwidth:1,
+          borderpad:4
+        };
+        Plotly.relayout(gd, {annotations:[ann]});
       }
-
-      function onMouseMove(e){
-        if(getPinned()!=null){ renderAtX(getPinned(), true); return; }
+      function onMove(e){
+        if(getPinned()!=null){ renderAtX(getPinned()); return; }
         const xa=gd._fullLayout.xaxis, ya=gd._fullLayout.yaxis;
         const pageX=e.clientX + window.scrollX, pageY=e.clientY + window.scrollY;
         const x0=xa._offset + window.scrollX, x1=x0 + xa._length;
         const y0=ya._offset + window.scrollY, y1=y0 + ya._length;
-        if(pageX<x0||pageX>x1||pageY<y0||pageY>y1){ if(getPinned()==null) tip.style.display='none'; return; }
+        if(pageX<x0||pageX>x1||pageY<y0||pageY>y1){
+          if(getPinned()==null) Plotly.relayout(gd, {annotations:[]});
+          return;
+        }
         const x = dataXFromPage(pageX);
-        renderAtX(x, false);
+        renderAtX(x);
       }
+      gd.addEventListener('mousemove', onMove);
+      gd.addEventListener('mouseleave', ()=>{ if(getPinned()==null) Plotly.relayout(gd,{annotations:[]}); });
 
-      gd._hoverCtl = {
-        renderPinned(){ if(getPinned()!=null) renderAtX(getPinned(), true); else tip.style.display='none'; },
-        clear(){ tip.style.display='none'; }
+      gd._trackerCtl = {
+        renderPinned(){ if(getPinned()!=null) renderAtX(getPinned()); else Plotly.relayout(gd,{annotations:[]}); },
+        clear(){ Plotly.relayout(gd,{annotations:[]}); }
       };
-
-      gd.addEventListener('mousemove', onMouseMove);
-      gd.addEventListener('mouseleave', ()=>{ if(getPinned()==null) tip.style.display='none'; });
     }
 
-    // Axis helpers — nice intervals
+    // Axis helpers — nice intervals + padding
     function padLogRange(minX, maxX, padFrac=0.08){
       const lo = Math.log10(minX), hi = Math.log10(maxX);
       const pad = (hi - lo) * padFrac;
@@ -580,11 +573,9 @@
       return vals;
     }
     function linearDtick(span){
-      // choose from 1, 2, 5 × 10^k
-      const rough = span/6; // about 6 ticks
-      const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+      const rough = span/6;
+      const pow = Math.pow(10, Math.floor(Math.log10(Math.max(rough, 1e-12))));
       const cand = [1,2,5].map(m=>m*pow);
-      // pick closest to rough
       let best=cand[0], diff=Infinity;
       for(const c of cand){ const d=Math.abs(c-rough); if(d<diff){diff=d; best=c;} }
       return best;
@@ -607,7 +598,7 @@
         const mode=(axisTypes.x==='log'&&axisTypes.y==='log')?'log':'linear';
         rawSeriesCache[cacheKey]={X, Y, mode};
 
-        const samples=Number(document.getElementById('smoothPoints').value)||600;
+        const samples=Number(document.getElementById('smoothPoints').value)||800;
         const {denseX,denseY}=interpolateSeries(X,Y,samples,mode); denseCache[cacheKey]={X:denseX,Y:denseY};
 
         // ranges + intervals
@@ -615,7 +606,6 @@
         const yMin = Math.min(...denseY), yMax = Math.max(...denseY);
 
         let xaxis={}, yaxis={};
-
         if(axisTypes.x==='log'){
           xaxis.type='log';
           xaxis.range = padLogRange(xMin, xMax, 0.1);
@@ -624,14 +614,13 @@
           xaxis.autorange=false; xaxis.fixedrange=true;
           xaxis.gridcolor='#f1f5f9'; xaxis.constrain='domain';
         } else {
-          const span = xMax - xMin;
+          const span = xMax - xMin || 1;
           xaxis.type='linear';
           xaxis.range = [xMin - span*0.07, xMax + span*0.07];
           xaxis.dtick = linearDtick(span);
           xaxis.autorange=false; xaxis.fixedrange=true;
           xaxis.gridcolor='#f1f5f9'; xaxis.constrain='domain';
         }
-
         if(axisTypes.y==='log'){
           yaxis.type='log';
           const [lo,hi] = padLogRange(yMin,yMax,0.12);
@@ -641,33 +630,33 @@
           yaxis.gridcolor='#f1f5f9';
         } else {
           yaxis.type='linear';
-          const span = yMax - yMin || Math.max(1, yMax*0.25);
+          const span = (yMax - yMin) || Math.max(1, yMax*0.25);
           yaxis.range = fixedYRange ? fixedYRange : [yMin - span*0.08, yMax + span*0.08];
           yaxis.dtick = linearDtick(yaxis.range[1]-yaxis.range[0]);
           yaxis.autorange=false; yaxis.fixedrange=true;
           yaxis.gridcolor='#f1f5f9';
         }
-
-        // Arc fixed y-range as requested earlier
         if(cacheKey==='arc'){ yaxis.range=[300,3000]; yaxis.autorange=false; }
 
         const traceLine  ={x:denseX,y:denseY,mode:'lines',type:'scatter',line:{width:2},hoverinfo:'skip', cliponaxis:true};
-        const traceCursor={x:[denseX[0]],y:[denseY[0]],mode:'markers',type:'scatter',marker:{size:12,symbol:'circle',line:{width:2}},hoverinfo:'skip'};
+        const traceCursor={x:[denseX[0]],y:[denseY[0]],mode:'markers',type:'scatter',
+                           marker:{size:12,symbol:'circle',line:{width:2}, color:'#f97316'},hoverinfo:'skip'};
 
         const layout={
-          title:title(), hovermode:'closest', // hover enabled again
+          title:title(),
+          hovermode:false, // we handle hover manually to guarantee exact X interpolation + annotation
           dragmode:'pan', uirevision:title(),
           xaxis:{...xaxis, title:axisLabels.x},
           yaxis:{...yaxis, title:axisLabels.y},
-          margin:{l:60,r:10,t:34,b:48}, showlegend:false
+          margin:{l:60,r:10,t:34,b:48}, showlegend:false,
+          annotations:[] // cleared on draw; we set one below the dot
         };
 
         Plotly.newPlot(containerId, [traceLine, traceCursor], layout, PLOT_CONFIG).then(gd=>{
-          gdRefs[cacheKey] = gd; // store reference for instant Set()
-          attachTooltip(gd, cacheKey, tooltip, getPinned, ()=>rawSeriesCache[cacheKey]);
-          // If X is pinned, render immediately at exact X
-          if(getPinned()!=null && Number.isFinite(getPinned())) gd._hoverCtl.renderPinned();
-          else gd._hoverCtl.clear();
+          gdRefs[cacheKey] = gd;
+          attachTracker(gd, cacheKey, tooltip, getPinned, ()=>rawSeriesCache[cacheKey]);
+          // If pinned, render immediately; else leave annotation empty until mouse enters
+          if(getPinned()!=null && Number.isFinite(getPinned())) gd._trackerCtl.renderPinned(); else gd._trackerCtl.clear();
         });
       }
       plotCurve();
@@ -675,7 +664,7 @@
     }
 
     // Tooltip text
-    const tooltipFmt = {
+    const tooltip = {
       tcc:  (x,y)=> `Current: ${pretty(x)} A  |  Time: ${prettyTime(y)} s`,
       watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
       arc:  (x,y)=> `Eg: ${pretty(x)}  |  Ul: ${y.toFixed(0)} V`,
@@ -693,10 +682,10 @@
     // Build & refresh curves charts
     let chartTcc, chartWatts, chartArc, chartCut;
     function buildCurvesCharts(){
-      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc, getPinned:()=>pinnedX.tcc });
-      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.watts, getPinned:()=>pinnedX.watts });
-      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltipFmt.arc, getPinned:()=>pinnedX.arc });
-      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.cut, getPinned:()=>pinnedX.cut });
+      chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltip.tcc, getPinned:()=>pinnedX.tcc });
+      chartWatts = buildChart({ containerId:'chart-watts', title:()=> selectedFuse? `Watts Loss — ${selectedFuse.family}` : 'Watts Loss', getCurve:getWattsCurve, cacheKey:'watts', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Load Current (%)', y:'Kp'}, fixedYRange:null, xTransform:null, tooltip:tooltip.watts, getPinned:()=>pinnedX.watts });
+      chartArc   = buildChart({ containerId:'chart-arc', title:()=> selectedFuse? `Arc Voltage — ${selectedFuse.family}` : 'Arc Voltage', getCurve:getArcCurve, cacheKey:'arc', axisTypes:{x:'linear',y:'linear'}, axisLabels:{x:'Eg', y:'Ul (V)'}, fixedYRange:[300,3000], xTransform:null, tooltip:tooltip.arc, getPinned:()=>pinnedX.arc });
+      chartCut   = buildChart({ containerId:'chart-cutoff', title:()=> selectedFuse? `Cut-off — ${selectedFuse.family} — ${selectedFuse.I}A` : 'Cut-off Curve', getCurve:getCutCurve, cacheKey:'cut', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Prospective current', y:'Peak let-through'}, fixedYRange:null, xTransform:null, tooltip:tooltip.cut, getPinned:()=>pinnedX.cut });
     }
     function refreshCurvesCharts(){ chartTcc?.refresh(); chartWatts?.refresh(); chartArc?.refresh(); chartCut?.refresh(); }
 
@@ -736,13 +725,13 @@
         if(!Number.isFinite(val)) return;
         pinnedX[group]=val;
         const gd = gdRefs[group];
-        if(gd && gd._hoverCtl){ gd._hoverCtl.renderPinned(); } // instant update
+        if(gd && gd._trackerCtl){ gd._trackerCtl.renderPinned(); } // instant update
       });
 
       clrBtn.addEventListener('click', ()=>{
         pinnedX[group]=null;
         const gd = gdRefs[group];
-        if(gd && gd._hoverCtl){ gd._hoverCtl.clear(); } // hover resumes on next move
+        if(gd && gd._trackerCtl){ gd._trackerCtl.clear(); } // hover resumes on next move
       });
 
       input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ setBtn.click(); } });
@@ -763,12 +752,11 @@
           const arr=pairs.slice().sort((a,b)=>a.x-b.x);
           const X=arr.map(p=>p.x), Y=arr.map(p=>p.y);
 
-          // nice dticks
           const xSpan = (fixedXRange ? fixedXRange[1]-fixedXRange[0] : (X[X.length-1]-X[0])) || 1;
           const yMin = Math.min(...Y), yMax = Math.max(...Y);
           const ySpan = (yMax - yMin) || Math.max(1, yMax*0.25);
 
-          const samples=700; const xMin=X[0], xMax=X[X.length-1], step=(xMax-xMin)/(samples-1);
+          const samples=900; const xMin=X[0], xMax=X[X.length-1], step=(xMax-xMin)/(samples-1);
           const dX=[], dY=[];
           for(let k=0;k<samples;k++){
             const xq=xMin+step*k; let j=1; while(j<X.length && X[j]<xq) j++;
@@ -789,16 +777,19 @@
           }
 
           const traceDense={x:dX,y:dY,mode:'lines',type:'scatter',line:{width:2},hoverinfo:'skip'};
-          const traceCursor={x:[cx],y:[cy],mode:'markers',type:'scatter',marker:{size:12,symbol:'circle',line:{width:2}},hoverinfo:'skip'};
+          const traceCursor={x:[cx],y:[cy],mode:'markers',type:'scatter',
+                             marker:{size:12,symbol:'circle',line:{width:2}, color:'#f97316'},hoverinfo:'skip'};
 
-          const layout={title, hovermode:'closest', dragmode:'pan', uirevision:title,
+          const layout={title, hovermode:false, dragmode:'pan', uirevision:title,
             xaxis:{type:'linear', title:axisLabels.x,
                    range: fixedXRange || [X[0]-xSpan*0.07, X[X.length-1]+xSpan*0.07],
                    dtick: linearDtick(xSpan), gridcolor:'#f1f5f9',constrain:'domain', fixedrange:true, autorange:false},
             yaxis:{type:'linear', title:axisLabels.y,
                    range:[yMin - ySpan*0.08, yMax + ySpan*0.08],
                    dtick: linearDtick(ySpan), gridcolor:'#f1f5f9', fixedrange:true, autorange:false},
-            margin:{l:60,r:10,t:34,b:48}, showlegend:false };
+            margin:{l:60,r:10,t:34,b:48}, showlegend:false,
+            annotations:[]
+          };
 
           Plotly.newPlot(containerId, [traceDense, traceCursor], layout, PLOT_CONFIG);
         }
@@ -813,7 +804,7 @@
     function computeKePercentage(Ib, areaMm2){
       if (!Number.isFinite(Ib) || !Number.isFinite(areaMm2) || areaMm2 <= 0) return NaN;
       const J = Ib / areaMm2;
-      const pctRaw = (1 - (J - 1.3) / J) * 100; // (1.3/J)*100
+      const pctRaw = (1 - (J - 1.3) / J) * 100;
       if (!Number.isFinite(pctRaw)) return NaN;
       return Math.max(50, Math.min(100, pctRaw));
     }
@@ -907,7 +898,7 @@
       updateRecommendations(Vexact, Iderated, preferredPart ?? (document.getElementById('recSelect').value || null));
     }
 
-    // ----- Overload helpers (same logic) -----
+    // ----- Overload helpers -----
     function getRecommendedFuse(){
       const recSel = document.getElementById('recSelect');
       const part = recSel && recSel.value;
@@ -975,12 +966,13 @@
 
       const Icurve = (Number.isFinite(dur) && dur>0) ? currentAtTimeFromTcc(tcc.X, tcc.Y, dur) : NaN;
 
-      const samples = Number(document.getElementById('smoothPoints')?.value) || 600;
+      const samples = Number(document.getElementById('smoothPoints')?.value) || 800;
       const {denseX, denseY} = interpolateSeries(tcc.X, tcc.Y, samples, 'log');
       const traceDense = { x:denseX, y:denseY, mode:'lines', type:'scatter', line:{width:2}, hoverinfo:'skip' };
       const dotCurve = (Number.isFinite(Icurve) && Number.isFinite(dur))
         ? { x:[Icurve], y:[dur], mode:'markers+text', type:'scatter',
-            marker:{size:14, symbol:'circle', line:{width:2}}, text:[`I=${pretty(Icurve)} A<br>t=${prettyTime(dur)} s`],
+            marker:{size:14, symbol:'circle', line:{width:2}, color:'#f97316'},
+            text:[`I=${pretty(Icurve)} A<br>t=${prettyTime(dur)} s`],
             textposition:'top center', hoverinfo:'skip' }
         : { x:[], y:[], type:'scatter', mode:'markers', visible:false };
 
@@ -995,7 +987,7 @@
       const xMin=Math.min(...tcc.X), xMax=Math.max(...tcc.X);
       const yMin=Math.min(...tcc.Y), yMax=Math.max(...tcc.Y);
       const layout = {
-        hovermode:'closest', dragmode:'pan', uirevision:'overload',
+        hovermode:false, dragmode:'pan', uirevision:'overload',
         xaxis:{type:'log', title:'Current (A)', range: padLogRange(xMin,xMax,0.1), tickvals: logTickVals(xMin,xMax), gridcolor:'#f1f5f9',constrain:'domain', fixedrange:true, autorange:false},
         yaxis:{type:'log', title:'Time (s)',   range: padLogRange(yMin,yMax,0.12), tickvals: logTickVals(yMin,yMax), gridcolor:'#f1f5f9', fixedrange:true, autorange:false},
         margin:{l:60,r:10,t:34,b:48}, showlegend:false
