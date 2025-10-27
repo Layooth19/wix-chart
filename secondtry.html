@@ -55,22 +55,18 @@
 
     .actions-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
 
-    /* Overload layout */
     .overload-grid{ display:grid; grid-template-columns:2fr 1fr; gap:16px; min-width:0 }
 
-    /* Pin bars */
     .tinybar{ display:flex; align-items:center; gap:8px; margin:0 8px 8px; flex-wrap:wrap; }
     .tinybar input{ width:160px; padding:6px 8px; border-radius:8px; }
     .tinybar button{ padding:6px 10px; border-radius:8px; }
 
-    /* Image panels */
     .imgpanel{ display:flex; flex-direction:column; gap:8px }
     .imgbox{ width:100%; height:300px; background:#f8fafc; border:1px dashed #e5e7eb; border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
     .imgbox img{ max-width:100%; max-height:100%; object-fit:contain; cursor:zoom-in; }
     .imgcaption{ font-size:12px; color:#6b7280; text-align:center }
     .imgactions{ display:flex; justify-content:flex-end; gap:10px; margin:0 4px 6px; }
 
-    /* Fullscreen modal */
     .modal{ position:fixed; inset:0; background:rgba(15,23,42,.75); display:none; align-items:center; justify-content:center; z-index:50; }
     .modal.open{ display:flex; }
     .modal-inner{ max-width:min(95vw,1400px); max-height:90vh; background:#0b1020; padding:12px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.4); }
@@ -391,7 +387,6 @@
     const airJsonUrl  = 'air_speed_kv_data.json';
 
     const PLOT_CONFIG = { responsive:true, displayModeBar:true, scrollZoom:false, doubleClick:false };
-    // keep index=2 like your working build: [0]=dense line, [1]=raw (hidden), [2]=cursor
     const CURSOR_TRACE_INDEX = 2;
 
     // Data
@@ -415,14 +410,15 @@
     function pretty(v){ if(v>=1000) return v.toFixed(0); if(v>=100) return v.toFixed(1); if(v>=10) return v.toFixed(2); if(v>=1) return v.toFixed(3); return v.toExponential(2); }
     function prettyTime(v){ return v>=1? v.toFixed(3) : v.toExponential(2); }
 
-    // ---------- CURVES core (from your working version) ----------
+    // ---------- CURVES core ----------
     const denseCache = { tcc:{X:[],Y:[]}, watts:{X:[],Y:[]}, arc:{X:[],Y:[]}, cut:{X:[],Y:[]} };
 
     function prepSeries(xs, ys){
       const pairs = xs.map((x,i)=>[Number(x), Number(ys[i])])
         .filter(p=> Number.isFinite(p[0]) && Number.isFinite(p[1]) && p[0]>0 && p[1]>0)
         .sort((a,b)=> a[0]-b[0]);
-      return {X:pairs.map(p=>p[0]), Y:pairs.map(p[1])};
+      // FIX: correct accessor for Y; the previous bug used pairs.map(p[1]) which returns undefined
+      return {X:pairs.map(p=>p[0]), Y:pairs.map(p=>p[1])};
     }
     function interpolateSeries(X,Y,samples, mode='log'){
       if (mode==='linear') {
@@ -464,7 +460,6 @@
                               : (xax.range[0] + rx*(xax.range[1]-xax.range[0]));
     }
 
-    // exact y for Set (linear for watts/arc, log-log for tcc/cut)
     function yAtX_exact(X, Y, x, mode){
       if(!X.length || !Y.length) return {x:NaN, y:NaN};
       if(x <= X[0]) return {x, y:Y[0]};
@@ -483,7 +478,6 @@
       }
     }
 
-    // Pinned X per chart; and quick access to raw series + mode
     const pinnedX = { tcc:null, watts:null, arc:null, cut:null };
     const rawSeries = { tcc:{X:[],Y:[],mode:'log'}, watts:{X:[],Y:[],mode:'linear'}, arc:{X:[],Y:[],mode:'linear'}, cut:{X:[],Y:[],mode:'log'} };
 
@@ -498,13 +492,12 @@
         const idx=nearestIndex(dense.X, x), cx=dense.X[idx], cy=dense.Y[idx];
         Plotly.restyle(gd, {x:[[cx]], y:[[cy]]}, [CURSOR_TRACE_INDEX]);
         tip.textContent = tooltipFormatter(cx,cy);
-        if(fromMouse){ // place near cursor
+        if(fromMouse){
           tip.style.left=(fromMouse.clientX+14)+'px'; tip.style.top=(fromMouse.clientY-18)+'px';
         } else {
-          // place near right-top inside plot
           const xax=gd._fullLayout.xaxis, yax=gd._fullLayout.yaxis;
-          const right = xax._offset + xax._length + 8; // inside, slight offset
-          const top   = yax._offset + 8;
+          const right = xax._offset + xax._length - 10;
+          const top   = yax._offset + 10;
           tip.style.left=(right - tip.offsetWidth)+'px';
           tip.style.top=top+'px';
         }
@@ -516,14 +509,12 @@
         if(px==null){ tip.style.display='none'; return; }
         const rs = rawSeries[cacheKey];
         if(!rs.X.length) return;
-        // compute exact y for the Set X
         const p = yAtX_exact(rs.X, rs.Y, px, rs.mode);
         Plotly.restyle(gd, {x:[[p.x]], y:[[p.y]]}, [CURSOR_TRACE_INDEX]);
-        tip.textContent = tooltipFormatter(p.x, p.y);
-        // place tip at a stable corner inside the plot
         const xax=gd._fullLayout.xaxis, yax=gd._fullLayout.yaxis;
         const right = xax._offset + xax._length - 10;
         const top   = yax._offset + 10;
+        tip.textContent = tooltipFormatter(p.x, p.y);
         tip.style.left=(right - tip.offsetWidth)+'px';
         tip.style.top=top+'px';
         tip.style.display='block';
@@ -544,11 +535,9 @@
       });
       host.addEventListener('mouseleave', ()=>{ if(getPinned()==null) tip.style.display='none'; });
 
-      // expose helpers so Set/Clear can control it
       gd._hoverCtl = { renderPinned, hide:()=>{tip.style.display='none';} };
     }
 
-    // --- Build charts (keep same feel as your working build) ---
     function buildChart(opts){
       const {containerId, title, getCurve, cacheKey, axisTypes, axisLabels, fixedYRange, xTransform, tooltip} = opts;
       const container=document.getElementById(containerId);
@@ -570,7 +559,6 @@
         const xMin=Math.min(...X), xMax=Math.max(...X), yMin=Math.min(...Y), yMax=Math.max(...Y);
 
         const traceDense={x:denseX,y:denseY,mode:'lines',type:'scatter',name:'Interpolated',line:{width:2},hoverinfo:'skip'};
-        // keep raw for index consistency, but hide it
         const traceRaw  ={x:X,y:Y,mode:'lines+markers',type:'scatter',name:'Raw',line:{width:2},marker:{size:6},hoverinfo:'skip', visible:false};
         const traceCursor={x:[denseX[0]],y:[denseY[0]],mode:'markers',type:'scatter',name:'Cursor',
                            marker:{size:12,symbol:'circle',line:{width:2}},hoverinfo:'skip'};
@@ -595,7 +583,6 @@
       return { refresh: plotCurve };
     }
 
-    // Tooltips text (same as your working build)
     const tooltipFmt = {
       tcc:  (x,y)=> `Current: ${pretty(x)} A  |  Time: ${prettyTime(y)} s`,
       watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
@@ -603,13 +590,11 @@
       cut:  (x,y)=> `Prospective: ${pretty(x)} A  |  Let-through: ${pretty(y)} A`,
     };
 
-    // Curve getters
     function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
     function getWattsCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(wattsData[fam]||{})["all"]; if(!c)return null; const s=prepSeries(c.current,c.time); return {X:s.X.map(v=>Math.min(v*100,100)), Y:s.Y}; }
     function getArcCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(arcData[fam]||{})["all"]; if(!c)return null; return prepSeries(c.current,c.time); }
     function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=`${selectedFuse.I}A`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
 
-    // Build & refresh curves
     let chartTcc, chartWatts, chartArc, chartCut;
     function buildCurvesCharts(){
       chartTcc   = buildChart({ containerId:'chart-tcc', title:()=> selectedFuse? `${selectedFuse.part} — ${selectedFuse.family} — ${selectedFuse.I}A @ ${selectedFuse.V}V` : 'Time–Current Curve', getCurve:getTccCurve, cacheKey:'tcc', axisTypes:{x:'log',y:'log'}, axisLabels:{x:'Current (A)', y:'Time (s)'}, fixedYRange:null, xTransform:null, tooltip:tooltipFmt.tcc });
@@ -687,14 +672,13 @@
         const val = Number(input.value);
         if(!Number.isFinite(val)) return;
         pinnedX[group]=val;
-        // render immediately using exact interpolation
         const gd = document.getElementById(`chart-${group==='cut'?'cutoff':group}`);
         if(gd && gd._hoverCtl){ gd._hoverCtl.renderPinned(); }
       });
       clrBtn.addEventListener('click', ()=>{
         pinnedX[group]=null;
         const gd = document.getElementById(`chart-${group==='cut'?'cutoff':group}`);
-        if(gd && gd._hoverCtl){ gd._hoverCtl.hide(); } // hover resumes on next move
+        if(gd && gd._hoverCtl){ gd._hoverCtl.hide(); }
       });
       input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ setBtn.click(); } });
     }
@@ -720,7 +704,6 @@
           else if(j>=X.length){dX.push(X.at(-1)); dY.push(Y.at(-1));}
           else {const t=(xq-X[j-1])/(X[j]-X[j-1]); dX.push(xq); dY.push(Y[j-1]+t*(Y[j]-Y[j-1]));}
         }
-        // choose display x
         let cx=dX[0], cy=dY[0];
         if(Number.isFinite(xCurrent)){
           if(xCurrent<=dX[0]){ cx=dX[0]; cy=dY[0]; }
@@ -862,7 +845,6 @@
       updateRecommendations(Vexact, Iderated, preferredPart ?? (document.getElementById('recSelect').value || null));
     }
 
-    // ---------- OVERLOAD (unchanged from working feel) ----------
     function getRecommendedFuse(){
       const recSel = document.getElementById('recSelect');
       const part = recSel && recSel.value;
@@ -974,7 +956,6 @@
       document.getElementById('olResult').textContent = resultText;
     }
 
-    // ---------- Tabs ----------
     function activateTab(which){
       const isCurves = which==='curves';
       tabCurves.setAttribute('aria-selected', isCurves?'true':'false');
@@ -998,7 +979,6 @@
       tempTable=tjson; areaTable=ajson; freqTable=fjson; airTable=vjson;
       partsData.forEach((p,i)=>{ p.I=Number(p.I); p.V=Number(p.V); partsIdxByKey.set(p.part, i); });
 
-      // init images
       document.getElementById('imgCurvesOpenNew').href = '#';
       document.getElementById('imgDerateOpenNew').href = '#';
       setFuseImage('fuseImgCurves','fuseImgCurvesCap', null);
@@ -1006,7 +986,6 @@
 
       buildCurvesCharts();
 
-      // Curves events
       document.getElementById('searchBtn').addEventListener('click', searchFuses);
       document.getElementById('clearBtn').addEventListener('click',()=>{
         document.getElementById('currentInput').value='';
@@ -1015,7 +994,6 @@
         selectedFuse=null;
         ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
         setFuseImage('fuseImgCurves','fuseImgCurvesCap', null);
-        // clear pins
         pinnedX.tcc=pinnedX.watts=pinnedX.arc=pinnedX.cut=null;
         ['pinX-tcc','pinX-watts','pinX-arc','pinX-cut'].forEach(id=>document.getElementById(id).value='');
       });
