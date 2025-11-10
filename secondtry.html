@@ -77,9 +77,16 @@
     .modal-bar button{ background:#334155; }
     .modal-bar a{ color:#93c5fd; text-decoration:underline; }
 
+    /* Short Circuit Analysis layout */
+    .sca-grid{ display:grid; grid-template-columns:2fr 1fr; gap:16px; min-width:0 }
+    .sca-subgrid{ display:grid; grid-template-columns:1fr; gap:16px; }
+    .sca-out{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px }
+    .sca-out .kv{ padding:4px 0 }
+
     @media (max-width: 1100px){
       .grid, .grid-derate{ grid-template-columns:1fr; }
       .overload-grid{ grid-template-columns:1fr; }
+      .sca-grid{ grid-template-columns:1fr; }
       .wrap{ padding:12px; }
     }
   </style>
@@ -94,6 +101,7 @@
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tabbtn" role="tab" id="tab-curves" aria-controls="panel-curves" aria-selected="true">Curves</button>
       <button class="tabbtn" role="tab" id="tab-derate" aria-controls="panel-derate" aria-selected="false">Derating</button>
+      <button class="tabbtn" role="tab" id="tab-sca" aria-controls="panel-sca" aria-selected="false">Short Circuit Analysis</button>
     </nav>
 
     <!-- CURVES TAB -->
@@ -376,6 +384,90 @@
       </section>
       <!-- /INFLUENCE OF OVERLOADS -->
     </section>
+
+    <!-- SHORT CIRCUIT ANALYSIS TAB -->
+    <section id="panel-sca" class="tabpanel" role="tabpanel" aria-labelledby="tab-sca" aria-hidden="true">
+      <section class="card">
+        <div class="controls">
+          <div class="row">
+            <div class="field">
+              <label for="scaVoltage">System Voltage V (V)</label>
+              <input type="number" id="scaVoltage" placeholder="e.g., 690" step="0.1" />
+            </div>
+            <div class="field">
+              <label for="scaTau">Time constant x (s)</label>
+              <input type="number" id="scaTau" placeholder="e.g., 0.02" step="0.0001" />
+            </div>
+            <div class="field">
+              <label for="scaIrms">Prospective RMS current I<sub>rms</sub> (A)</label>
+              <input type="number" id="scaIrms" placeholder="e.g., 20000" step="1" />
+            </div>
+            <div class="field" style="align-self:flex-end; display:flex; gap:8px; align-items:center;">
+              <label class="small" style="display:flex; gap:10px; align-items:center;">
+                <input type="checkbox" id="toggleRMS" checked /> Show RMS fault
+              </label>
+              <label class="small" style="display:flex; gap:10px; align-items:center;">
+                <input type="checkbox" id="togglePeak" checked /> Show Peak fault
+              </label>
+              <button id="scaApply" type="button">Update</button>
+            </div>
+          </div>
+          <div class="hint">This analysis uses the currently selected fuse (from Curves or Derating). Choose a fuse first, then set V, x, and I<sub>rms</sub>.</div>
+        </div>
+      </section>
+
+      <section class="sca-grid">
+        <!-- Big TCC with fault lines -->
+        <div class="panel">
+          <div class="ctrlrow">
+            <h3>Time–Current with Fault Currents</h3>
+            <span class="small">x: Current (A) • y: Time (s)</span>
+          </div>
+          <div id="chart-sca-tcc" class="chart"></div>
+        </div>
+
+        <!-- Right column -->
+        <div class="sca-subgrid">
+          <div class="panel">
+            <div class="ctrlrow">
+              <h3>Arc Voltage (Selected Fuse)</h3>
+              <span class="small">x: Eg • y: Ul (V)</span>
+            </div>
+            <div id="chart-sca-arc" class="chart-sm"></div>
+          </div>
+          <div class="panel">
+            <div class="ctrlrow">
+              <h3>Kg vs Time</h3>
+              <span class="small">x: Time (s) • y: Kg</span>
+            </div>
+            <div id="chart-sca-kg" class="chart-sm"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Numeric Outputs -->
+      <section class="card">
+        <div class="ctrlrow">
+          <h3>Outputs</h3>
+          <span class="small">Derived live from curves + inputs</span>
+        </div>
+        <div class="sca-out">
+          <div class="kv"><span>RMS melting current I<sub>melt</sub> (A)</span><strong id="sca-Imelt">—</strong></div>
+          <div class="kv"><span>Melting Time T<sub>melt</sub> (s)</span><strong id="sca-Tmelt">—</strong></div>
+          <div class="kv"><span>Kg factor</span><strong id="sca-Kg">—</strong></div>
+          <div class="kv"><span>AC peak Arc Voltage E<sub>ac</sub> (V)</span><strong id="sca-Eac">—</strong></div>
+          <div class="kv"><span>DC peak Arc Voltage E<sub>dc</sub> (V)</span><strong id="sca-Edc">—</strong></div>
+          <div class="kv"><span>Melting I²t A<sub>melt</sub> (A²s ×10<sup>−3</sup>)</span><strong id="sca-Amelt">—</strong></div>
+          <div class="kv"><span>Peak cut-off current I<sub>cut</sub> (A)</span><strong id="sca-Icut">—</strong></div>
+          <div class="kv"><span>Total I²t A<sub>tot</sub> (A²s)</span><strong id="sca-Atot">—</strong></div>
+          <div class="kv"><span>Avg Arc Voltage E<sub>avg</sub> (V)</span><strong id="sca-Eavg">—</strong></div>
+          <div class="kv"><span>Total clearing Time T<sub>tot</sub> (s)</span><strong id="sca-Ttot">—</strong></div>
+          <div class="kv"><span>R = V / I<sub>rms</sub> (Ω)</span><strong id="sca-R">—</strong></div>
+          <div class="kv"><span>y</span><strong id="sca-y">—</strong></div>
+          <div class="kv"><span>z</span><strong id="sca-z">—</strong></div>
+        </div>
+      </section>
+    </section>
   </main>
 
   <!-- Fullscreen Image Modal -->
@@ -417,19 +509,22 @@
     // Tabs
     const tabCurves  = document.getElementById('tab-curves');
     const tabDerate  = document.getElementById('tab-derate');
+    const tabSCA     = document.getElementById('tab-sca');
     const panelCurves= document.getElementById('panel-curves');
     const panelDerate= document.getElementById('panel-derate');
+    const panelSCA   = document.getElementById('panel-sca');
 
     // Helpers
     async function loadJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error(`Failed to load ${url}`); return r.json(); }
     function fmt(n,d=3){ return Number(n).toFixed(d); }
     function normalizeRatingKey(I){ const base=`${I}A`; return [base, `${base}*`, `${I} A`]; }
     function formatOption(p){ return `${p.part}  —  ${p.family}  •  ${p.I}A  •  ${p.V}V`; }
-    function pretty(v){ if(v>=1000) return v.toFixed(0); if(v>=100) return v.toFixed(1); if(v>=10) return v.toFixed(2); if(v>=1) return v.toFixed(3); return v.toExponential(2); }
-    function prettyTime(v){ return v>=1? v.toFixed(3) : v.toExponential(2); }
+    function pretty(v){ if(!isFinite(v)) return '—'; if(v>=1000) return v.toFixed(0); if(v>=100) return v.toFixed(1); if(v>=10) return v.toFixed(2); if(v>=1) return v.toFixed(3); return v.toExponential(2); }
+    function prettyTime(v){ if(!isFinite(v)) return '—'; return v>=1? v.toFixed(3) : v.toExponential(2); }
 
     // ---------- CURVES core ----------
-    const denseCache = { tcc:{X:[],Y:[]}, watts:{X:[],Y:[]}, arc:{X:[],Y:[]}, cut:{X:[],Y:[]} };
+    const denseCache = { tcc:{X:[],Y:[]}, watts:{X:[],Y:[]}, arc:{X:[],Y:[]}, cut:{X:[],Y:[]},
+                         sca_tcc:{X:[],Y:[]}, sca_arc:{X:[],Y:[]}, sca_kg:{X:[],Y:[]} };
     const pinnedX = { tcc:null, watts:null, arc:null, cut:null };
     const rawSeries = { tcc:{X:[],Y:[],mode:'log'}, watts:{X:[],Y:[],mode:'linear'}, arc:{X:[],Y:[],mode:'linear'}, cut:{X:[],Y:[],mode:'log'} };
 
@@ -440,6 +535,7 @@
       return {X:pairs.map(p=>p[0]), Y:pairs.map(p=>p[1])};
     }
     function interpolateSeries(X,Y,samples, mode='log'){
+      if(!X.length) return {denseX:[], denseY:[]};
       if (mode==='linear') {
         const xMin=X[0], xMax=X[X.length-1], step=(xMax-xMin)/(samples-1);
         const dx=[], dy=[];
@@ -479,7 +575,7 @@
                               : (xax.range[0] + rx*(xax.range[1]-xax.range[0]));
     }
     function yAtX_exact(X, Y, x, mode){
-      if(!X.length || !Y.length) return {x:NaN, y:NaN};
+      if(!X.length || !Y.length || !isFinite(x)) return {x:NaN, y:NaN};
       if(x <= X[0]) return {x, y:Y[0]};
       if(x >= X[X.length-1]) return {x, y:Y[Y.length-1]};
       let lo=0, hi=X.length-1, j=1;
@@ -518,7 +614,7 @@
         const dense=denseCache[cacheKey]||{X:[],Y:[]}; if(!dense.X.length){ tip.style.display='none'; return; }
         const idx=nearestIndex(dense.X, x), cx=dense.X[idx], cy=dense.Y[idx];
         Plotly.restyle(gd, {x:[[cx]], y:[[cy]]}, [CURSOR_TRACE_INDEX]);
-        if(getPinned()!=null){ tip.style.display='none'; return; } // pinned => use pill, not floating tip
+        if(getPinned && getPinned()!=null){ tip.style.display='none'; return; }
         if(fromMouse){
           tip.textContent = tooltipFormatter(cx,cy);
           tip.style.left=(fromMouse.clientX+14)+'px'; tip.style.top=(fromMouse.clientY-18)+'px';
@@ -527,18 +623,18 @@
       }
 
       function renderPinned(){
+        if(!getPinned) return;
         const px = getPinned();
         if(px==null){ tip.style.display='none'; return; }
-        const rs = rawSeries[cacheKey];
+        const rs = rawSeries[cacheKey] || {X:[],Y:[],mode:'linear'};
         if(!rs.X.length) return;
         const p = yAtX_exact(rs.X, rs.Y, px, rs.mode);
         Plotly.restyle(gd, {x:[[p.x]], y:[[p.y]]}, [CURSOR_TRACE_INDEX]);
         tip.style.display='none';
-        setPill(cacheKey, p.x, p.y);
       }
 
       host.addEventListener('mousemove',(e)=>{
-        if(getPinned()!=null){ renderPinned(); return; }
+        if(getPinned && getPinned()!=null){ renderPinned(); return; }
         const r=host.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
         const xax=gd._fullLayout.xaxis, yax=gd._fullLayout.yaxis, x0=xax._offset, xw=xax._length, y0=yax._offset, yh=yax._length;
         if(px<x0||px>x0+xw||py<y0||py>y0+yh){ tip.style.display='none'; return; }
@@ -550,7 +646,7 @@
           raf=null;
         });
       });
-      host.addEventListener('mouseleave', ()=>{ if(getPinned()==null) tip.style.display='none'; });
+      host.addEventListener('mouseleave', ()=>{ tip.style.display='none'; });
 
       gd._hoverCtl = { renderPinned, hide:()=>{ tip.style.display='none'; } };
     }
@@ -564,7 +660,6 @@
         if(!result||!result.X||!result.Y||!result.X.length){
           Plotly.purge(containerId); container.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">No data for selection.</div>';
           denseCache[cacheKey]={X:[],Y:[]}; rawSeries[cacheKey]={X:[],Y:[],mode:(axisTypes.x==='log'&&axisTypes.y==='log')?'log':'linear'};
-          clearPill(cacheKey);
           return;
         }
         let X=result.X.slice(), Y=result.Y.slice();
@@ -600,6 +695,8 @@
       watts:(x,y)=> `Load current: ${x.toFixed(0)}%  |  Kp: ${y.toFixed(3)}`,
       arc:  (x,y)=> `Eg: ${pretty(x)}  |  Ul: ${y.toFixed(0)} V`,
       cut:  (x,y)=> `Prospective: ${pretty(x)} A  |  Let-through: ${pretty(y)} A`,
+      sca_arc:(x,y)=> `Eg: ${pretty(x)}  |  Ul: ${y.toFixed(0)} V`,
+      sca_kg: (x,y)=> `t: ${prettyTime(x)} s  |  Kg: ${y.toFixed(3)}`
     };
 
     function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
@@ -674,8 +771,9 @@
       document.getElementById('badgeVoltage').textContent=`${selectedFuse.V}V`;
       refreshCurvesCharts();
       setFuseImage('fuseImgCurves','fuseImgCurvesCap', selectedFuse.part);
-      // Clear any pills when switching fuse
       ['tcc','watts','arc','cut'].forEach(g=>{ pinnedX[g]=null; clearPill(g); });
+      // also refresh SCA
+      drawSCA();
     }
 
     // ----- Pin wiring (Set/Clear) -----
@@ -697,9 +795,9 @@
       clrBtn.addEventListener('click', ()=>{
         pinnedX[group]=null;
         clearPill(group);
-        input.value=''; // also clear the textbox per request
+        input.value='';
         const gd = document.getElementById(`chart-${group==='cut'?'cutoff':group}`);
-        if(gd && gd._hoverCtl){ gd._hoverCtl.hide(); } // hover resumes on next mouse move
+        if(gd && gd._hoverCtl){ gd._hoverCtl.hide(); }
       });
       input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ setBtn.click(); } });
     }
@@ -970,18 +1068,241 @@
       document.getElementById('olResult').textContent = resultText;
     }
 
+    // ---------- SHORT CIRCUIT ANALYSIS ----------
+    // Kg lookup table (Tmelt[s] -> Kg)
+    const KG_TABLE = [
+      {t:0.3, Kg:0.75}, {t:1, Kg:0.715}, {t:3, Kg:0.66}, {t:5, Kg:0.622},
+      {t:10, Kg:0.562}, {t:20, Kg:0.497}, {t:30, Kg:0.463}, {t:40, Kg:0.451}, {t:100, Kg:0.445}
+    ];
+    function kgFromTime(t){
+      if(!isFinite(t) || t<=0) return NaN;
+      // piecewise linear interpolation on log-x (time decades often log-ish); fallback to linear if equal
+      const arr = KG_TABLE.slice().sort((a,b)=>a.t-b.t);
+      if(t<=arr[0].t) return arr[0].Kg;
+      if(t>=arr.at(-1).t) return arr.at(-1).Kg;
+      let i=1; while(i<arr.length && arr[i].t<t) i++;
+      const a=arr[i-1], b=arr[i];
+      const lx1=Math.log(a.t), lx2=Math.log(b.t), lq=Math.log(t);
+      const alpha = (lx2===lx1)? ((t-a.t)/(b.t-a.t)) : ((lq-lx1)/(lx2-lx1));
+      return a.Kg + alpha*(b.Kg-a.Kg);
+    }
+    function buildSCA_KgChart(Tmelt, Kg){
+      const id='chart-sca-kg';
+      const X = KG_TABLE.map(p=>p.t), Y=KG_TABLE.map(p=>p.Kg);
+      denseCache.sca_kg={X:[...X],Y:[...Y]};
+      const tTrace={x:X, y:Y, mode:'lines+markers', type:'scatter', hoverinfo:'skip', line:{width:2}};
+      const cursor= (isFinite(Tmelt)&&isFinite(Kg)) ? {x:[Tmelt], y:[Kg], mode:'markers+text', type:'scatter', marker:{size:12,line:{width:2}}, text:[`Kg=${Kg.toFixed(3)}`], textposition:'top center', hoverinfo:'skip'} : {x:[],y:[],type:'scatter',mode:'markers',visible:false};
+      const layout={ hovermode:'closest', dragmode:'pan', uirevision:'sca_kg',
+        xaxis:{type:'linear', title:'Time (s)', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
+        yaxis:{type:'linear', title:'Kg', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
+        margin:{l:60,r:10,t:34,b:48}, showlegend:false
+      };
+      Plotly.newPlot(id,[tTrace,cursor],layout,PLOT_CONFIG).then(gd=>{
+        attachAlwaysOnTooltip(gd,'sca_kg', tooltipFmt.sca_kg, null);
+      });
+    }
+
+    function sca_GetTccCurve(){ return getTccCurve(); }
+    function sca_GetArc(){ return getArcCurve(); }
+
+    function findIntersection_t(I_fault_at_t, tArray, I_tcc_at_t){
+      // find first sign change of (I_fault - I_tcc)
+      let lastDiff=null, lastT=null, lastIf=null, lastIc=null;
+      for(let i=0;i<tArray.length;i++){
+        const t=tArray[i], If=I_fault_at_t(t), Ic=I_tcc_at_t(t);
+        const diff = If - Ic;
+        if(i>0 && isFinite(diff) && isFinite(lastDiff) && diff===0){
+          return {t, I:If};
+        }
+        if(i>0 && isFinite(diff) && isFinite(lastDiff) && diff*lastDiff<=0){
+          // linear interpolate on t
+          const t1=lastT, t2=t; const d1=lastDiff, d2=diff;
+          const alpha = d2===d1 ? 0.5 : (-d1)/(d2-d1);
+          const tStar = t1 + alpha*(t2-t1);
+          const IStar = I_fault_at_t(tStar); // ~ equals I_tcc_at_t(tStar)
+          return {t:tStar, I:IStar};
+        }
+        lastDiff=diff; lastT=t; lastIf=If; lastIc=Ic;
+      }
+      return {t:NaN, I:NaN};
+    }
+
+    function drawSCA(){
+      const tcc = sca_GetTccCurve();
+      const arc = sca_GetArc();
+      const smooth = Number(document.getElementById('smoothPoints')?.value) || 700;
+      const V = Number(document.getElementById('scaVoltage').value);
+      const tau = Number(document.getElementById('scaTau').value); // x
+      const Irms = Number(document.getElementById('scaIrms').value);
+      const showRMS = document.getElementById('toggleRMS').checked;
+      const showPeak= document.getElementById('togglePeak').checked;
+
+      // Prepare Arc chart (right)
+      (function(){
+        const id='chart-sca-arc'; const cont=document.getElementById(id);
+        if(!arc || !arc.X?.length){
+          Plotly.purge(id); cont.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">No Arc Voltage data (select a fuse).</div>';
+          denseCache.sca_arc={X:[],Y:[]};
+        } else {
+          rawSeries.sca_arc = {X:[...arc.X], Y:[...arc.Y], mode:'linear'};
+          const {denseX,denseY} = interpolateSeries(arc.X, arc.Y, smooth, 'linear');
+          denseCache.sca_arc={X:denseX, Y:denseY};
+          const traces=[ {x:denseX,y:denseY,mode:'lines',type:'scatter',line:{width:2},hoverinfo:'skip'},
+                         {x:[denseX[0]],y:[denseY[0]],mode:'markers',type:'scatter',marker:{size:12,line:{width:2}},hoverinfo:'skip'} ];
+          const layout={ hovermode:'closest', dragmode:'pan', uirevision:'sca_arc',
+            xaxis:{type:'linear', title:'Eg', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
+            yaxis:{type:'linear', title:'Ul (V)', gridcolor:'#f1f5f9', autorange:false, range:[300,3000]},
+            margin:{l:60,r:10,t:34,b:48}, showlegend:false
+          };
+          Plotly.newPlot(id,traces,layout,PLOT_CONFIG).then(gd=>{
+            attachAlwaysOnTooltip(gd,'sca_arc', tooltipFmt.sca_arc, null);
+          });
+        }
+      })();
+
+      // Prepare TCC main with fault curves
+      (function(){
+        const id='chart-sca-tcc'; const cont=document.getElementById(id);
+        if(!tcc || !tcc.X?.length){
+          Plotly.purge(id); cont.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">Select a fuse on Curves/Derating to view TCC.</div>';
+          denseCache.sca_tcc={X:[],Y:[]};
+          // clear outputs
+          ['sca-Imelt','sca-Tmelt','sca-Kg','sca-Eac','sca-Edc','sca-Amelt','sca-Icut','sca-Atot','sca-Eavg','sca-Ttot','sca-R','sca-y','sca-z'].forEach(id=>document.getElementById(id).textContent='—');
+          return;
+        }
+        const {denseX, denseY} = interpolateSeries(tcc.X, tcc.Y, smooth, 'log'); // Currents (A), Times (s)
+        // denseY is time axis; we need I_tcc(t): invert by evaluating current at given t using raw series
+        const tSeries = (()=>{ // build monotone in time series (log-log interpolation)
+          const pairs = tcc.X.map((c,i)=>({t:tcc.Y[i], c}));
+          const valid = pairs.filter(p=>p.t>0 && p.c>0).sort((a,b)=>a.t-b.t);
+          const T = valid.map(p=>p.t), C=valid.map(p=>p.c);
+          return {T, C};
+        })();
+        function I_tcc_at_t(t){ return currentAtTimeFromTcc(tSeries.C, tSeries.T, t); }
+
+        // Fault current models (ensure numeric stability; exponents are negative)
+        function I_peak(t){ if(!isFinite(Irms)||!isFinite(tau)||tau<=0||t<0) return NaN; return Irms * (1 - Math.exp(-t / tau)); }
+        function I_rms(t){
+          if(!isFinite(Irms)||!isFinite(tau)||tau<=0||t<=0) return NaN;
+          const e = Math.exp(-t/tau);
+          const term = 1 + ( (tau/(2*t)) * (4*e - Math.exp(-2*t/tau) - 3) );
+          return Irms * Math.sqrt(Math.max(0, term));
+        }
+
+        // Build traces
+        denseCache.sca_tcc={X:denseX, Y:denseY};
+        const traceTCC = { x:denseX, y:denseY, mode:'lines', type:'scatter', line:{width:2}, hoverinfo:'skip', name:'TCC' };
+
+        const tForPlot = denseY.slice(); // time axis from TCC
+        const peakX = tForPlot.map(t=>I_peak(t));
+        const rmsX  = tForPlot.map(t=>I_rms(t));
+
+        const tracePeak = { x:peakX, y:tForPlot, mode:'lines', type:'scatter', line:{width:2}, hoverinfo:'skip', name:'Peak fault', visible: showPeak ? true : 'legendonly' };
+        const traceRMS  = { x:rmsX,  y:tForPlot, mode:'lines', type:'scatter', line:{width:2, dash:'dot'}, hoverinfo:'skip', name:'RMS fault', visible: showRMS ? true : 'legendonly' };
+
+        // Intersections
+        const interRMS = findIntersection_t(I_rms, tForPlot, I_tcc_at_t);
+        const interPeak= findIntersection_t(I_peak, tForPlot, I_tcc_at_t);
+        const dotRMS = (isFinite(interRMS.t) && showRMS) ? {x:[interRMS.I], y:[interRMS.t], mode:'markers', type:'scatter', marker:{size:13, symbol:'circle', line:{width:2}}, name:'RMS ∩ TCC'} : {x:[],y:[],type:'scatter',mode:'markers',visible:false};
+        const dotPeak= (isFinite(interPeak.t) && showPeak)? {x:[interPeak.I], y:[interPeak.t], mode:'markers', type:'scatter', marker:{size:13, symbol:'diamond', line:{width:2}}, name:'Peak ∩ TCC'} : {x:[],y:[],type:'scatter',mode:'markers',visible:false};
+
+        const layout={ hovermode:'closest', dragmode:'pan', uirevision:'sca_tcc',
+          xaxis:{type:'log', title:'Current (A)', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
+          yaxis:{type:'log', title:'Time (s)',   gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
+          margin:{l:60,r:10,t:34,b:48}, showlegend:true, legend:{orientation:'h', y:-0.2}
+        };
+
+        Plotly.newPlot(id,[traceTCC, tracePeak, traceRMS, dotPeak, dotRMS], layout, PLOT_CONFIG);
+
+        // --------- Numeric outputs ----------
+        const Imelt = interRMS.I;         // by definition
+        const Tmelt = interRMS.t;
+        const Kg = kgFromTime(Tmelt);
+        // Arc voltages:
+        function arcY_at(x){ if(!arc || !arc.X?.length || !isFinite(x)) return NaN; const p=yAtX_exact(arc.X, arc.Y, x, 'linear'); return p.y; }
+        const Eac = arcY_at(V);                     // AC peak arc voltage at Eg = V
+        const Eg_dc = (isFinite(V)&&isFinite(Kg)) ? V*Kg : NaN;
+        const Edc = arcY_at(Eg_dc);                 // DC peak arc voltage
+        const Amelt = (isFinite(Imelt)&&isFinite(Tmelt)) ? ((Imelt*Imelt)*Tmelt)/1000 : NaN;  // A²s ×10^-3
+
+        // Icut per formula
+        const Icut = (isFinite(Irms)&&isFinite(Tmelt)&&isFinite(tau)&&tau>0) ? Irms*(1 - Math.exp(-Tmelt/tau)) : NaN;
+
+        const Eavg = isFinite(Edc) ? 0.85*Edc : NaN;
+        const R = (isFinite(V)&&isFinite(Irms)&&Irms!==0) ? (V/Irms) : NaN;
+        const y_val = (isFinite(Eavg)&&isFinite(V)&&isFinite(R)) ? ((Eavg - V)/R) : NaN;
+        const z_val = (isFinite(Eavg)&&isFinite(V)&&isFinite(R)&&isFinite(Icut)&&isFinite(tau)) ?
+          ( -tau * Math.log( (Eavg - V) / ( (Eavg - V) + (R * Icut) ) ) ) : NaN;
+
+        // Atot formula as provided (kept verbatim, with numerical guards)
+        function safeExp(val){ return Math.exp(val); }
+        const Atot = (function(){
+          if(![y_val,z_val,tau,Icut,Imelt,Tmelt].every(isFinite)) return NaN;
+          const term1 = (y_val*y_val * z_val * 0.001);
+          const inner = ( 2*y_val*(safeExp(-y_val/tau)-1) ) - (0.5*(y_val+Icut)*(safeExp(-2*y_val/tau)-1) ) + (Imelt*Imelt*Tmelt*0.001);
+          return term1 + ( (tau * 0.001 * (y_val + Icut)) * inner );
+        })();
+
+        const Ttot = (isFinite(z_val)&&isFinite(Tmelt)) ? (z_val + Tmelt) : NaN;
+
+        // Render numeric results
+        document.getElementById('sca-Imelt').textContent = pretty(Imelt);
+        document.getElementById('sca-Tmelt').textContent = prettyTime(Tmelt);
+        document.getElementById('sca-Kg').textContent    = isFinite(Kg)? Kg.toFixed(3) : '—';
+        document.getElementById('sca-Eac').textContent   = isFinite(Eac)? Eac.toFixed(0) : '—';
+        document.getElementById('sca-Edc').textContent   = isFinite(Edc)? Edc.toFixed(0) : '—';
+        document.getElementById('sca-Amelt').textContent = isFinite(Amelt)? Amelt.toFixed(3) : '—';
+        document.getElementById('sca-Icut').textContent  = pretty(Icut);
+        document.getElementById('sca-Atot').textContent  = isFinite(Atot)? Atot.toFixed(3) : '—';
+        document.getElementById('sca-Eavg').textContent  = isFinite(Eavg)? Eavg.toFixed(1) : '—';
+        document.getElementById('sca-Ttot').textContent  = prettyTime(Ttot);
+        document.getElementById('sca-R').textContent     = isFinite(R)? R.toFixed(6) : '—';
+        document.getElementById('sca-y').textContent     = isFinite(y_val)? y_val.toFixed(3) : '—';
+        document.getElementById('sca-z').textContent     = isFinite(z_val)? z_val.toFixed(6) : '—';
+
+        // Update side charts using Tmelt/Kg
+        buildSCA_KgChart(Tmelt, Kg);
+
+        // Mark Eac & Edc on arc plot if available
+        (function(){
+          const id='chart-sca-arc';
+          if(!(arc && arc.X?.length)) return;
+          const markX=[], markY=[], markText=[];
+          if(isFinite(V) && isFinite(Eac)){ markX.push(V); markY.push(Eac); markText.push('Eac'); }
+          if(isFinite(Eg_dc) && isFinite(Edc)){ markX.push(Eg_dc); markY.push(Edc); markText.push('Edc'); }
+          const extra = { x:markX, y:markY, mode:'markers+text', type:'scatter', marker:{size:12, line:{width:2}}, text:markText, textposition:'top center', hoverinfo:'skip', name:'Arc points' };
+          Plotly.addTraces(id, extra);
+        })();
+      })();
+    }
+
+    // Toggle RMS/Peak on change
+    ['toggleRMS','togglePeak','scaVoltage','scaTau','scaIrms'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.addEventListener('input', drawSCA);
+      el.addEventListener('change', drawSCA);
+    });
+    document.getElementById('scaApply').addEventListener('click', drawSCA);
+
     function activateTab(which){
       const isCurves = which==='curves';
+      const isDerate = which==='derate';
+      const isSCA    = which==='sca';
       tabCurves.setAttribute('aria-selected', isCurves?'true':'false');
-      tabDerate.setAttribute('aria-selected', isCurves?'false':'true');
+      tabDerate.setAttribute('aria-selected', isDerate?'true':'false');
+      tabSCA.setAttribute('aria-selected',    isSCA?'true':'false');
       panelCurves.setAttribute('aria-hidden', isCurves?'false':'true');
-      panelDerate.setAttribute('aria-hidden', isCurves?'true':'false');
+      panelDerate.setAttribute('aria-hidden', isDerate?'false':'true');
+      panelSCA.setAttribute('aria-hidden',    isSCA?'false':'true');
       const ids = isCurves ? ['chart-tcc','chart-watts','chart-arc','chart-cutoff']
-                           : ['chart-kT','chart-kA','chart-kV','chart-kF','chart-overload'];
+           : isDerate ? ['chart-kT','chart-kA','chart-kV','chart-kF','chart-overload']
+           : ['chart-sca-tcc','chart-sca-arc','chart-sca-kg'];
       ids.forEach(id=>{ const el=document.getElementById(id); if(el && el.children.length){ Plotly.Plots.resize(id); }});
+      if(isSCA) drawSCA();
     }
     tabCurves.addEventListener('click', ()=>activateTab('curves'));
     tabDerate.addEventListener('click', ()=>activateTab('derate'));
+    tabSCA.addEventListener('click',    ()=>activateTab('sca'));
 
     // ---------- Boot ----------
     (async () => {
@@ -1007,14 +1328,14 @@
         document.getElementById('voltageInput').value='';
         document.getElementById('fuseListContainer').style.display='none';
         selectedFuse=null;
-        ['chart-tcc','chart-watts','chart-arc','chart-cutoff'].forEach(id=>{ Plotly.purge(id); document.getElementById(id).innerHTML=''; });
+        ['chart-tcc','chart-watts','chart-arc','chart-cutoff','chart-sca-tcc','chart-sca-arc','chart-sca-kg'].forEach(id=>{ if(document.getElementById(id)){ Plotly.purge(id); document.getElementById(id).innerHTML=''; } });
         setFuseImage('fuseImgCurves','fuseImgCurvesCap', null);
-        // clear pin state and inputs
         pinnedX.tcc=pinnedX.watts=pinnedX.arc=pinnedX.cut=null;
-        ['pinX-tcc','pinX-watts','pinX-arc','pinX-cut'].forEach(id=>document.getElementById(id).value='');
+        ['pinX-tcc','pinX-watts','pinX-arc','pinX-cut'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
         ['tcc','watts','arc','cut'].forEach(clearPill);
+        drawSCA();
       });
-      document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); } drawOverloadChart(); });
+      document.getElementById('smoothPoints').addEventListener('input', ()=>{ if(selectedFuse){ refreshCurvesCharts(); } drawOverloadChart(); drawSCA(); });
       document.getElementById('fuseSelect').addEventListener('change', onFuseSelected);
       document.getElementById('currentInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
       document.getElementById('voltageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFuses(); });
@@ -1049,6 +1370,7 @@
         refreshCurvesCharts();
         setFuseImage('fuseImgCurves','fuseImgCurvesCap', selectedFuse.part);
         activateTab('curves');
+        drawSCA();
       });
 
       // Overload inputs
