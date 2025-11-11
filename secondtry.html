@@ -5,11 +5,6 @@
   <title>Fuse Selector – Curves + Derating (Recommendations + Apply)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
-  #updateRecsBtn,
-  #olTestBtn{
-  display:none !important;
-  }
   <style>
     :root{ --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --brand:#2563eb; --ring:#93c5fd }
     *{ box-sizing:border-box }
@@ -316,7 +311,7 @@
               <input type="number" id="altInput" placeholder="e.g., 1000" step="1" />
             </div>
             <div class="field actions-row" style="align-self:flex-end">
-              <button id="updateRecsBtn">Update recommendations</button>
+              <button id="updateRecsBtn" style="display:none">Update recommendations</button>
               <button id="applyToCurvesBtn" class="ghost" type="button" disabled>Apply to Curves</button>
             </div>
           </div>
@@ -414,7 +409,7 @@
               </select>
             </div>
             <div class="field" style="align-self:flex-end">
-              <button id="olTestBtn" type="button">Test Overload Suitability</button>
+              <button id="olTestBtn" type="button" style="display:none">Test Overload Suitability</button>
             </div>
           </div>
 
@@ -1548,6 +1543,7 @@
   </script>
 </body>
 </html>
+
 
 
 
