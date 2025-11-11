@@ -1138,28 +1138,67 @@
       const showRMS = document.getElementById('toggleRMS').checked;
       const showPeak= document.getElementById('togglePeak').checked;
 
-      // Prepare Arc chart (right)
+      // --- SCA Arc plot: fixed Eac & Edc markers (no mouse-follow) ---
       (function(){
-        const id='chart-sca-arc'; const cont=document.getElementById(id);
-        if(!arc || !arc.X?.length){
-          Plotly.purge(id); cont.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">No Arc Voltage data (select a fuse).</div>';
-          denseCache.sca_arc={X:[],Y:[]};
-        } else {
-          rawSeries.sca_arc = {X:[...arc.X], Y:[...arc.Y], mode:'linear'};
-          const {denseX,denseY} = interpolateSeries(arc.X, arc.Y, smooth, 'linear');
-          denseCache.sca_arc={X:denseX, Y:denseY};
-          const traces=[ {x:denseX,y:denseY,mode:'lines',type:'scatter',line:{width:2},hoverinfo:'skip'},
-                         {x:[denseX[0]],y:[denseY[0]],mode:'markers',type:'scatter',marker:{size:12,line:{width:2}},hoverinfo:'skip'} ];
-          const layout={ hovermode:'closest', dragmode:'pan', uirevision:'sca_arc',
-            xaxis:{type:'linear', title:'Eg', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
-            yaxis:{type:'linear', title:'Ul (V)', gridcolor:'#f1f5f9', autorange:false, range:[300,3000]},
-            margin:{l:60,r:10,t:34,b:48}, showlegend:false
-          };
-          Plotly.newPlot(id,traces,layout,PLOT_CONFIG).then(gd=>{
-            attachAlwaysOnTooltip(gd,'sca_arc', tooltipFmt.sca_arc, null);
-          });
+        const id='chart-sca-arc';
+        const cont=document.getElementById(id);
+      
+        // Helper to read Ul at a given Eg
+        function arcY_at(x){
+          if(!arc || !arc.X?.length || !isFinite(x)) return NaN;
+          const p = yAtX_exact(arc.X, arc.Y, x, 'linear');
+          return p.y;
         }
+      
+        if(!arc || !arc.X?.length){
+          Plotly.purge(id);
+          cont.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">No Arc Voltage data (select a fuse).</div>';
+          denseCache.sca_arc = {X:[],Y:[]};
+          return;
+        }
+      
+        // Prepare dense arc curve
+        rawSeries.sca_arc = {X:[...arc.X], Y:[...arc.Y], mode:'linear'};
+        const {denseX, denseY} = interpolateSeries(arc.X, arc.Y, smooth, 'linear');
+        denseCache.sca_arc = {X:denseX, Y:denseY};
+      
+        // Compute fixed points
+        const Eac = arcY_at(V);                 // at Eg = V
+        const Eg_dc = (isFinite(V) && isFinite(Kg)) ? V*Kg : NaN;
+        const Edc = arcY_at(Eg_dc);
+      
+        // Traces: curve + two fixed markers
+        const traceCurve = {
+          x:denseX, y:denseY, mode:'lines', type:'scatter',
+          line:{width:2}, name:'Arc curve', hoverinfo:'x+y'
+        };
+        const traceEac = (isFinite(V) && isFinite(Eac)) ? {
+          x:[V], y:[Eac], mode:'markers+text', type:'scatter',
+          marker:{size:12, line:{width:2}},
+          text:[`Eac=${Eac.toFixed(0)} V`], textposition:'top center',
+          hoverinfo:'skip', name:'Eac'
+        } : {x:[],y:[],type:'scatter',mode:'markers',visible:false, name:'Eac'};
+        const traceEdc = (isFinite(Eg_dc) && isFinite(Edc)) ? {
+          x:[Eg_dc], y:[Edc], mode:'markers+text', type:'scatter',
+          marker:{size:12, line:{width:2}},
+          text:[`Edc=${Edc.toFixed(0)} V`], textposition:'top center',
+          hoverinfo:'skip', name:'Edc'
+        } : {x:[],y:[],type:'scatter',mode:'markers',visible:false, name:'Edc'};
+      
+        const layout = {
+          hovermode:'closest',
+          dragmode:'pan',
+          uirevision:'sca_arc_fixed_points',
+          xaxis:{type:'linear', title:'Eg', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
+          yaxis:{type:'linear', title:'Ul (V)', gridcolor:'#f1f5f9', autorange:false, range:[300,3000]},
+          margin:{l:60,r:10,t:34,b:48},
+          showlegend:false
+        };
+      
+        // Use react to update in place on every input change
+        Plotly.react(id, [traceCurve, traceEac, traceEdc], layout, PLOT_CONFIG);
       })();
+
 
       // Prepare TCC main with fault curves
       (function(){
@@ -1264,46 +1303,10 @@
         // Update side charts using Tmelt/Kg
         buildSCA_KgChart(Tmelt, Kg);
 
-        // Mark Eac & Edc on arc plot if available - SIMPLIFIED
-        (function(){
-          const id='chart-sca-arc';
-          if(!(arc && arc.X?.length)) return;
-          
-          const markX=[], markY=[], markText=[];
-          if(isFinite(V) && isFinite(Eac)){ 
-            markX.push(V); 
-            markY.push(Eac); 
-            markText.push(`Eac: ${Eac.toFixed(0)}V`); 
-          }
-          if(isFinite(Eg_dc) && isFinite(Edc)){ 
-            markX.push(Eg_dc); 
-            markY.push(Edc); 
-            markText.push(`Edc: ${Edc.toFixed(0)}V`); 
-          }
-          
-          if (markX.length > 0) {
-            const extra = { 
-              x:markX, 
-              y:markY, 
-              mode:'markers+text', 
-              type:'scatter', 
-              marker:{size:12, color:'red', line:{width:2}}, 
-              text:markText, 
-              textposition:'top center', 
-              hoverinfo:'none',  // Completely disable hover
-              name:'Arc points',
-              showlegend: false
-            };
-            
-            // Simply add the traces without complex operations
-            Plotly.addTraces(id, extra);
-          }
-        })();
+        
       })(); // <-- ADD THIS CLOSING BRACE (closes the TCC function)
     } // <-- ADD THIS CLOSING BRACE (closes the drawSCA function)
-        
-    // Toggle RMS/Peak on change
-        
+                
     // Toggle RMS/Peak on change
     ['toggleRMS','togglePeak','scaVoltage','scaTau','scaIrms'].forEach(id=>{
       const el=document.getElementById(id);
@@ -1412,6 +1415,7 @@
   </script>
 </body>
 </html>
+
 
 
 
