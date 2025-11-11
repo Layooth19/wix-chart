@@ -1224,12 +1224,12 @@
         const Eac = arcY_at(V);                     // AC peak arc voltage at Eg = V
         const Eg_dc = (isFinite(V)&&isFinite(Kg)) ? V*Kg : NaN;
         const Edc = arcY_at(Eg_dc);                 // DC peak arc voltage
-        const Amelt = (isFinite(Imelt)&&isFinite(Tmelt)) ? ((Imelt*Imelt)*Tmelt)/1000 : NaN;  // A²s ×10^-3
+        const Amelt = (isFinite(Imelt)&&isFinite(Tmelt)) ? ((Imelt*Imelt)*Tmelt) : NaN;  // A²s
 
         // Icut per formula
         const Icut = (isFinite(Irms)&&isFinite(Tmelt)&&isFinite(tau)&&tau>0) ? Irms*(1 - Math.exp(-Tmelt/tau)) : NaN;
 
-        const Eavg = isFinite(Edc) ? 0.85*Edc : NaN;
+        const Eavg = isFinite(Edc) ? (Eac+Edc)/2 : NaN;
         const R = (isFinite(V)&&isFinite(Irms)&&Irms!==0) ? (V/Irms) : NaN;
         const y_val = (isFinite(Eavg)&&isFinite(V)&&isFinite(R)) ? ((Eavg - V)/R) : NaN;
         const z_val = (isFinite(Eavg)&&isFinite(V)&&isFinite(R)&&isFinite(Icut)&&isFinite(tau)) ?
@@ -1385,6 +1385,7 @@
   </script>
 </body>
 </html>
+
 
 
 
