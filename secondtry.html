@@ -1294,6 +1294,10 @@
             ], document.getElementById(id).layout, PLOT_CONFIG);
           }
         })();
+      })(); // <-- ADD THIS CLOSING BRACE (closes the TCC function)
+    } // <-- ADD THIS CLOSING BRACE (closes the drawSCA function)
+        
+    // Toggle RMS/Peak on change
         
     // Toggle RMS/Peak on change
     ['toggleRMS','togglePeak','scaVoltage','scaTau','scaIrms'].forEach(id=>{
@@ -1403,6 +1407,7 @@
   </script>
 </body>
 </html>
+
 
 
 
