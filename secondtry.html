@@ -98,6 +98,57 @@
     <p>Curves: TCC, Watts Loss, Arc Voltage, Cut-off • Derating: kT/Ke/kV/kF (+ altitude)</p>
   </header>
 
+  <!-- Appearance Controls -->
+<button id="openAppearance" class="ghost" style="float:right;margin:8px">Appearance</button>
+
+<div class="modal" id="appearanceModal" role="dialog" aria-modal="true" aria-labelledby="appearanceTitle">
+  <div class="modal-inner" style="background:#fff;color:#111;">
+    <div class="modal-bar" style="color:#111;">
+      <strong id="appearanceTitle">Appearance</strong>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button id="appearanceReset" class="ghost">Reset</button>
+        <button id="appearanceClose">Close</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-width:60vw">
+      <label>Brand
+        <input type="color" id="var--brand">
+      </label>
+      <label>Background
+        <input type="color" id="var--bg">
+      </label>
+      <label>Card
+        <input type="color" id="var--card">
+      </label>
+      <label>Text
+        <input type="color" id="var--text">
+      </label>
+      <label>Muted Text
+        <input type="color" id="var--muted">
+      </label>
+      <label>Ring (focus)
+        <input type="color" id="var--ring">
+      </label>
+      <label style="grid-column:1/-1">Border radius (px)
+        <input type="range" id="radiusAll" min="6" max="24" step="1" value="14">
+      </label>
+      <label>Chart height (px)
+        <input type="number" id="chartHeight" min="260" max="1200" step="10" value="420">
+      </label>
+      <label>SCA TCC height (px)
+        <input type="number" id="scaChartHeight" min="400" max="1600" step="20" value="1000">
+      </label>
+      <label>Plotly theme
+        <select id="plotlyTheme">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </div>
+  </div>
+</div>
+<!-- /Appearance Controls -->
+
   <main class="wrap">
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tabbtn" role="tab" id="tab-curves" aria-controls="panel-curves" aria-selected="true">Curves</button>
@@ -1402,7 +1453,87 @@
       });
       document.getElementById('olTestBtn').addEventListener('click', drawOverloadChart);
     })();
+
+    // ===== Appearance panel =====
+    const AP_KEY = 'ui-theme-v1';
+    
+    const DEFAULTS = {
+      '--bg':'#f6f7fb','--card':'#ffffff','--text':'#111827','--muted':'#6b7280','--brand':'#2563eb','--ring':'#93c5fd',
+      radius:14, chartHeight:420, scaChartHeight:1000, plotlyTheme:'light'
+    };
+    
+    function applyTheme(theme){
+      const root = document.documentElement;
+      ['--bg','--card','--text','--muted','--brand','--ring'].forEach(k=>{
+        if(theme[k]) root.style.setProperty(k, theme[k]);
+      });
+      const r = Number(theme.radius) || DEFAULTS.radius;
+      document.querySelectorAll('.card,.panel,.imgbox,.modal-inner').forEach(el=> el.style.borderRadius = r+'px');
+      const h = Number(theme.chartHeight)||DEFAULTS.chartHeight;
+      document.querySelectorAll('.chart').forEach(el=>{
+        if(!el.id.startsWith('chart-sca-tcc')) el.style.height = h+'px';
+      });
+      const hs = Number(theme.scaChartHeight)||DEFAULTS.scaChartHeight;
+      const sca = document.getElementById('chart-sca-tcc');
+      if(sca) sca.style.height = hs+'px';
+      const dark = theme.plotlyTheme === 'dark';
+      const layoutPatch = dark ? {
+        paper_bgcolor:'#0b1020', plot_bgcolor:'#0b1020',
+        font:{color:'#e5e7eb'}, xaxis:{gridcolor:'#334155', tickcolor:'#e5e7eb', linecolor:'#64748b'},
+        yaxis:{gridcolor:'#334155', tickcolor:'#e5e7eb', linecolor:'#64748b'}
+      } : {
+        paper_bgcolor:'#ffffff', plot_bgcolor:'#ffffff',
+        font:{color:'#111827'}, xaxis:{gridcolor:'#f1f5f9', tickcolor:'#111827', linecolor:'#cbd5e1'},
+        yaxis:{gridcolor:'#f1f5f9', tickcolor:'#111827', linecolor:'#cbd5e1'}
+      };
+      ['chart-tcc','chart-watts','chart-arc','chart-cutoff','chart-overload','chart-kT','chart-kA','chart-kV','chart-kF','chart-sca-tcc','chart-sca-arc','chart-sca-kg']
+       .forEach(id=>{ const el=document.getElementById(id); if(el && el.data){ Plotly.relayout(el, layoutPatch); } });
+      localStorage.setItem(AP_KEY, JSON.stringify(theme));
+    }
+    
+    function openAppearance(){
+      const modal = document.getElementById('appearanceModal');
+      const theme = JSON.parse(localStorage.getItem(AP_KEY)||'null') || DEFAULTS;
+      ['--brand','--bg','--card','--text','--muted','--ring'].forEach(k=>{
+        const inp=document.getElementById('var'+k); if(inp) inp.value = theme[k] || DEFAULTS[k];
+      });
+      document.getElementById('radiusAll').value = theme.radius ?? DEFAULTS.radius;
+      document.getElementById('chartHeight').value = theme.chartHeight ?? DEFAULTS.chartHeight;
+      document.getElementById('scaChartHeight').value = theme.scaChartHeight ?? DEFAULTS.scaChartHeight;
+      document.getElementById('plotlyTheme').value = theme.plotlyTheme ?? DEFAULTS.plotlyTheme;
+      modal.classList.add('open');
+    }
+    function closeAppearance(){ document.getElementById('appearanceModal').classList.remove('open'); }
+    
+    document.getElementById('openAppearance').addEventListener('click', openAppearance);
+    document.getElementById('appearanceClose').addEventListener('click', closeAppearance);
+    document.getElementById('appearanceModal').addEventListener('click', (e)=>{ if(e.target.id==='appearanceModal') closeAppearance(); });
+    document.getElementById('appearanceReset').addEventListener('click', ()=>{ applyTheme({...DEFAULTS}); });
+    
+    ['--brand','--bg','--card','--text','--muted','--ring'].forEach(k=>{
+      const el = document.getElementById('var'+k);
+      el.addEventListener('input', ()=>{
+        const saved = JSON.parse(localStorage.getItem(AP_KEY)||'null') || {...DEFAULTS};
+        saved[k] = el.value;
+        applyTheme(saved);
+      });
+    });
+    ['radiusAll','chartHeight','scaChartHeight','plotlyTheme'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.addEventListener('input', ()=>{
+        const saved = JSON.parse(localStorage.getItem(AP_KEY)||'null') || {...DEFAULTS};
+        saved[id==='radiusAll'?'radius':id] = (id==='plotlyTheme') ? el.value : Number(el.value);
+        applyTheme(saved);
+      });
+    });
+    
+    (function(){
+      const saved = JSON.parse(localStorage.getItem(AP_KEY)||'null');
+      applyTheme(saved||DEFAULTS);
+    })();
+    
   </script>
 </body>
 </html>
+
 
