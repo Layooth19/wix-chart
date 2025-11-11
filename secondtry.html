@@ -1264,34 +1264,39 @@
         // Update side charts using Tmelt/Kg
         buildSCA_KgChart(Tmelt, Kg);
 
-        // Prepare Arc chart (right) - WITHOUT hover tooltip
+        // Mark Eac & Edc on arc plot if available - SIMPLIFIED
         (function(){
-          const id='chart-sca-arc'; const cont=document.getElementById(id);
-          if(!arc || !arc.X?.length){
-            Plotly.purge(id); cont.innerHTML='<div class="small" style="padding:8px;color:#9ca3af">No Arc Voltage data (select a fuse).</div>';
-            denseCache.sca_arc={X:[],Y:[]};
-          } else {
-            rawSeries.sca_arc = {X:[...arc.X], Y:[...arc.Y], mode:'linear'};
-            const {denseX,denseY} = interpolateSeries(arc.X, arc.Y, smooth, 'linear');
-            denseCache.sca_arc={X:denseX, Y:denseY};
-            
-            // Create just the main trace without cursor trace
-            const traces=[ 
-              {x:denseX, y:denseY, mode:'lines', type:'scatter', line:{width:2}, hoverinfo:'skip'}
-            ];
-            
-            const layout={ 
-              hovermode: false, // <-- DISABLE HOVER MODE COMPLETELY
-              dragmode:'pan', 
-              uirevision:'sca_arc',
-              xaxis:{type:'linear', title:'Eg', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
-              yaxis:{type:'linear', title:'Ul (V)', gridcolor:'#f1f5f9', autorange:false, range:[300,3000]},
-              margin:{l:60,r:10,t:34,b:48}, 
-              showlegend:false
+          const id='chart-sca-arc';
+          if(!(arc && arc.X?.length)) return;
+          
+          const markX=[], markY=[], markText=[];
+          if(isFinite(V) && isFinite(Eac)){ 
+            markX.push(V); 
+            markY.push(Eac); 
+            markText.push(`Eac: ${Eac.toFixed(0)}V`); 
+          }
+          if(isFinite(Eg_dc) && isFinite(Edc)){ 
+            markX.push(Eg_dc); 
+            markY.push(Edc); 
+            markText.push(`Edc: ${Edc.toFixed(0)}V`); 
+          }
+          
+          if (markX.length > 0) {
+            const extra = { 
+              x:markX, 
+              y:markY, 
+              mode:'markers+text', 
+              type:'scatter', 
+              marker:{size:12, color:'red', line:{width:2}}, 
+              text:markText, 
+              textposition:'top center', 
+              hoverinfo:'none',  // Completely disable hover
+              name:'Arc points',
+              showlegend: false
             };
             
-            Plotly.newPlot(id, traces, layout, PLOT_CONFIG);
-            // REMOVED the attachAlwaysOnTooltip call
+            // Simply add the traces without complex operations
+            Plotly.addTraces(id, extra);
           }
         })();
       })(); // <-- ADD THIS CLOSING BRACE (closes the TCC function)
@@ -1407,6 +1412,7 @@
   </script>
 </body>
 </html>
+
 
 
 
