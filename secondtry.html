@@ -1138,67 +1138,6 @@
       const showRMS = document.getElementById('toggleRMS').checked;
       const showPeak= document.getElementById('togglePeak').checked;
 
-      // --- SCA Arc plot: fixed Eac & Edc markers (no mouse-follow) ---
-      (function(){
-        const id='chart-sca-arc';
-        const cont=document.getElementById(id);
-      
-        // Helper to read Ul at a given Eg
-        function arcY_at(x){
-          if(!arc || !arc.X?.length || !isFinite(x)) return NaN;
-          const p = yAtX_exact(arc.X, arc.Y, x, 'linear');
-          return p.y;
-        }
-      
-        if(!arc || !arc.X?.length){
-          Plotly.purge(id);
-          cont.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">No Arc Voltage data (select a fuse).</div>';
-          denseCache.sca_arc = {X:[],Y:[]};
-          return;
-        }
-      
-        // Prepare dense arc curve
-        rawSeries.sca_arc = {X:[...arc.X], Y:[...arc.Y], mode:'linear'};
-        const {denseX, denseY} = interpolateSeries(arc.X, arc.Y, smooth, 'linear');
-        denseCache.sca_arc = {X:denseX, Y:denseY};
-      
-        // Compute fixed points
-        const Eac = arcY_at(V);                 // at Eg = V
-        const Eg_dc = (isFinite(V) && isFinite(Kg)) ? V*Kg : NaN;
-        const Edc = arcY_at(Eg_dc);
-      
-        // Traces: curve + two fixed markers
-        const traceCurve = {
-          x:denseX, y:denseY, mode:'lines', type:'scatter',
-          line:{width:2}, name:'Arc curve', hoverinfo:'x+y'
-        };
-        const traceEac = (isFinite(V) && isFinite(Eac)) ? {
-          x:[V], y:[Eac], mode:'markers+text', type:'scatter',
-          marker:{size:12, line:{width:2}},
-          text:[`Eac=${Eac.toFixed(0)} V`], textposition:'top center',
-          hoverinfo:'skip', name:'Eac'
-        } : {x:[],y:[],type:'scatter',mode:'markers',visible:false, name:'Eac'};
-        const traceEdc = (isFinite(Eg_dc) && isFinite(Edc)) ? {
-          x:[Eg_dc], y:[Edc], mode:'markers+text', type:'scatter',
-          marker:{size:12, line:{width:2}},
-          text:[`Edc=${Edc.toFixed(0)} V`], textposition:'top center',
-          hoverinfo:'skip', name:'Edc'
-        } : {x:[],y:[],type:'scatter',mode:'markers',visible:false, name:'Edc'};
-      
-        const layout = {
-          hovermode:'closest',
-          dragmode:'pan',
-          uirevision:'sca_arc_fixed_points',
-          xaxis:{type:'linear', title:'Eg', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
-          yaxis:{type:'linear', title:'Ul (V)', gridcolor:'#f1f5f9', autorange:false, range:[300,3000]},
-          margin:{l:60,r:10,t:34,b:48},
-          showlegend:false
-        };
-      
-        // Use react to update in place on every input change
-        Plotly.react(id, [traceCurve, traceEac, traceEdc], layout, PLOT_CONFIG);
-      })();
-
 
       // Prepare TCC main with fault curves
       (function(){
@@ -1302,6 +1241,57 @@
 
         // Update side charts using Tmelt/Kg
         buildSCA_KgChart(Tmelt, Kg);
+
+        // --- Arc mini-plot (now that we have Kg/Eac/Edc) ---
+        (function(){
+          const id = 'chart-sca-arc';
+          const cont = document.getElementById(id);
+        
+          if(!arc || !arc.X?.length){
+            Plotly.purge(id);
+            cont.innerHTML = '<div class="small" style="padding:8px;color:#9ca3af">No Arc Voltage data (select a fuse).</div>';
+            denseCache.sca_arc = {X:[], Y:[]};
+            return;
+          }
+        
+          function arcY_at(x){
+            if(!isFinite(x)) return NaN;
+            const p = yAtX_exact(arc.X, arc.Y, x, 'linear');
+            return p.y;
+          }
+        
+          rawSeries.sca_arc = {X:[...arc.X], Y:[...arc.Y], mode:'linear'};
+          const {denseX, denseY} = interpolateSeries(arc.X, arc.Y, smooth, 'linear');
+          denseCache.sca_arc = {X:denseX, Y:denseY};
+        
+          // We already computed these above
+          const traceCurve = { x:denseX, y:denseY, mode:'lines', type:'scatter', line:{width:2}, hoverinfo:'skip' };
+          const traceEac   = (isFinite(V) && isFinite(Eac)) ? {
+            x:[V], y:[Eac], mode:'markers+text', type:'scatter',
+            marker:{size:12, line:{width:2}}, text:[`Eac=${Eac.toFixed(0)} V`],
+            textposition:'top center', hoverinfo:'skip', name:'Eac'
+          } : {x:[],y:[],type:'scatter',mode:'markers',visible:false};
+        
+          const Eg_dc = (isFinite(V) && isFinite(Kg)) ? V*Kg : NaN;
+          const Edc_here = isFinite(Eg_dc) ? arcY_at(Eg_dc) : NaN;
+          const traceEdc = (isFinite(Eg_dc) && isFinite(Edc_here)) ? {
+            x:[Eg_dc], y:[Edc_here], mode:'markers+text', type:'scatter',
+            marker:{size:12, line:{width:2}}, text:[`Edc=${Edc_here.toFixed(0)} V`],
+            textposition:'top center', hoverinfo:'skip', name:'Edc'
+          } : {x:[],y:[],type:'scatter',mode:'markers',visible:false};
+        
+          const layout = {
+            hovermode:'closest',
+            dragmode:'pan',
+            uirevision:'sca_arc_fixed_points',
+            xaxis:{type:'linear', title:'Eg', gridcolor:'#f1f5f9', autorange:true, fixedrange:false},
+            yaxis:{type:'linear', title:'Ul (V)', gridcolor:'#f1f5f9', autorange:false, range:[300,3000]},
+            margin:{l:60,r:10,t:34,b:48}, showlegend:false
+          };
+        
+          Plotly.react(id, [traceCurve, traceEac, traceEdc], layout, PLOT_CONFIG);
+        })();
+
 
         
       })(); // <-- ADD THIS CLOSING BRACE (closes the TCC function)
@@ -1415,14 +1405,4 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
 
