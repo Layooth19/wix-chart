@@ -923,7 +923,15 @@
       if (!Number.isFinite(pctRaw)) return NaN;
       return Math.max(50, Math.min(100, pctRaw));
     }
-    function getAltitudeFactor(_altMeters){ return 1.0; }
+
+    // Altitude derating factor Ka
+    function getAltitudeFactor(h) {
+      if (!Number.isFinite(h)) return NaN;
+      if (h <= 2000) return 1.0;
+      // Above 2000 m: Ka = 1 - (((h - 2000)/100) * (0.5 / 100))
+      const Ka = 1 - (((h - 2000) / 100) * (0.5 / 100));
+      return Math.max(0, Ka);  // guard against negative values at extreme altitudes
+    }
 
     function updateRecommendations(voltageExact, Iderated, preferredPart){
       const recCard = document.getElementById('recCard');
@@ -1535,5 +1543,6 @@
   </script>
 </body>
 </html>
+
 
 
