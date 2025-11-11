@@ -1269,22 +1269,9 @@
           const id='chart-sca-arc';
           if(!(arc && arc.X?.length)) return;
           
-          // Remove any existing arc point traces first (in case of multiple updates)
-          const currentTraces = document.getElementById(id).data || [];
-          const arcPointTraceIndices = [];
-          currentTraces.forEach((trace, index) => {
-            if (trace.name === 'Arc points') {
-              arcPointTraceIndices.push(index);
-            }
-          });
-          
-          if (arcPointTraceIndices.length > 0) {
-            Plotly.deleteTraces(id, arcPointTraceIndices);
-          }
-          
           const markX=[], markY=[], markText=[];
-          if(isFinite(V) && isFinite(Eac)){ markX.push(V); markY.push(Eac); markText.push('Eac'); }
-          if(isFinite(Eg_dc) && isFinite(Edc)){ markX.push(Eg_dc); markY.push(Edc); markText.push('Edc'); }
+          if(isFinite(V) && isFinite(Eac)){ markX.push(V); markY.push(Eac); markText.push(`Eac: ${Eac.toFixed(0)}V`); }
+          if(isFinite(Eg_dc) && isFinite(Edc)){ markX.push(Eg_dc); markY.push(Edc); markText.push(`Edc: ${Edc.toFixed(0)}V`); }
           
           if (markX.length > 0) {
             const extra = { 
@@ -1292,14 +1279,19 @@
               y:markY, 
               mode:'markers+text', 
               type:'scatter', 
-              marker:{size:12, line:{width:2}}, 
+              marker:{size:12, line:{width:2, color:'red'}}, 
               text:markText, 
               textposition:'top center', 
-              hoverinfo:'text',  // Changed from 'skip' to 'text'
+              hoverinfo:'none',  // Changed to 'none' to completely disable hover
               name:'Arc points',
               showlegend: false  // Don't show in legend
             };
-            Plotly.addTraces(id, extra);
+            
+            // Use Plotly.react to completely replace the chart with fixed points
+            Plotly.react(id, [
+              ...document.getElementById(id).data,  // Keep existing traces
+              extra                                 // Add our fixed points
+            ], document.getElementById(id).layout, PLOT_CONFIG);
           }
         })();
         
@@ -1411,6 +1403,7 @@
   </script>
 </body>
 </html>
+
 
 
 
