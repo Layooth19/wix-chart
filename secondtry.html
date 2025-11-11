@@ -1264,19 +1264,45 @@
         // Update side charts using Tmelt/Kg
         buildSCA_KgChart(Tmelt, Kg);
 
-        // Mark Eac & Edc on arc plot if available
+        // Mark Eac & Edc on arc plot if available - FIXED: points stay in place
         (function(){
           const id='chart-sca-arc';
           if(!(arc && arc.X?.length)) return;
+          
+          // Remove any existing arc point traces first (in case of multiple updates)
+          const currentTraces = document.getElementById(id).data || [];
+          const arcPointTraceIndices = [];
+          currentTraces.forEach((trace, index) => {
+            if (trace.name === 'Arc points') {
+              arcPointTraceIndices.push(index);
+            }
+          });
+          
+          if (arcPointTraceIndices.length > 0) {
+            Plotly.deleteTraces(id, arcPointTraceIndices);
+          }
+          
           const markX=[], markY=[], markText=[];
           if(isFinite(V) && isFinite(Eac)){ markX.push(V); markY.push(Eac); markText.push('Eac'); }
           if(isFinite(Eg_dc) && isFinite(Edc)){ markX.push(Eg_dc); markY.push(Edc); markText.push('Edc'); }
-          const extra = { x:markX, y:markY, mode:'markers+text', type:'scatter', marker:{size:12, line:{width:2}}, text:markText, textposition:'top center', hoverinfo:'skip', name:'Arc points' };
-          Plotly.addTraces(id, extra);
+          
+          if (markX.length > 0) {
+            const extra = { 
+              x:markX, 
+              y:markY, 
+              mode:'markers+text', 
+              type:'scatter', 
+              marker:{size:12, line:{width:2}}, 
+              text:markText, 
+              textposition:'top center', 
+              hoverinfo:'text',  // Changed from 'skip' to 'text'
+              name:'Arc points',
+              showlegend: false  // Don't show in legend
+            };
+            Plotly.addTraces(id, extra);
+          }
         })();
-      })();
-    }
-
+        
     // Toggle RMS/Peak on change
     ['toggleRMS','togglePeak','scaVoltage','scaTau','scaIrms'].forEach(id=>{
       const el=document.getElementById(id);
@@ -1385,6 +1411,7 @@
   </script>
 </body>
 </html>
+
 
 
 
