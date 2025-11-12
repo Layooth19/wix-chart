@@ -1131,8 +1131,8 @@
     // ---------- SHORT CIRCUIT ANALYSIS ----------
     // Kg lookup table (Tmelt[s] -> Kg)
     const KG_TABLE = [
-      {t:0.3, Kg:0.75}, {t:1, Kg:0.715}, {t:3, Kg:0.66}, {t:5, Kg:0.622},
-      {t:10, Kg:0.562}, {t:20, Kg:0.497}, {t:30, Kg:0.463}, {t:40, Kg:0.451}, {t:100, Kg:0.445}
+      {t:0.0003, Kg:0.75}, {t:0.001, Kg:0.715}, {t:0.003, Kg:0.66}, {t:0.005, Kg:0.622},
+      {t:0.010, Kg:0.562}, {t:0.020, Kg:0.497}, {t:0.030, Kg:0.463}, {t:0.040, Kg:0.451}, {t:0.100, Kg:0.445}
     ];
     function kgFromTime(t){
       if(!isFinite(t) || t<=0) return NaN;
@@ -1549,6 +1549,7 @@
   </script>
 </body>
 </html>
+
 
 
 
