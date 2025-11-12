@@ -1231,9 +1231,15 @@
         denseCache.sca_tcc={X:denseX, Y:denseY};
         const traceTCC = { x:denseX, y:denseY, mode:'lines', type:'scatter', line:{width:2}, hoverinfo:'skip', name:'TCC' };
 
+        // --- Align RMS and Peak curves with TCC lowest X (current) value ---
         const tForPlot = denseY.slice(); // time axis from TCC
-        const peakX = tForPlot.map(t=>I_peak(t));
-        const rmsX  = tForPlot.map(t=>I_rms(t));
+        let peakX = tForPlot.map(t => I_peak(t));
+        let rmsX  = tForPlot.map(t => I_rms(t));
+        
+        const minX = tcc.X[0]; // lowest current from the TCC curve
+        peakX = peakX.map(x => Math.max(x, minX));
+        rmsX  = rmsX.map(x => Math.max(x, minX));
+
 
         const tracePeak = { x:peakX, y:tForPlot, mode:'lines', type:'scatter', line:{width:2}, hoverinfo:'skip', name:'Peak fault', visible: showPeak ? true : 'legendonly' };
         const traceRMS  = { x:rmsX,  y:tForPlot, mode:'lines', type:'scatter', line:{width:2, dash:'dot'}, hoverinfo:'skip', name:'RMS fault', visible: showRMS ? true : 'legendonly' };
@@ -1543,6 +1549,7 @@
   </script>
 </body>
 </html>
+
 
 
 
