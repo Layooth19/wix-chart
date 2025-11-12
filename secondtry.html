@@ -753,7 +753,61 @@
 
     function getTccCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const keys=normalizeRatingKey(selectedFuse.I); const famObj=tccData[fam]||{}; const key=keys.find(k=>famObj[k]); if(!key)return null; const c=famObj[key]; return prepSeries(c.current,c.time); }
     function getWattsCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(wattsData[fam]||{})["all"]; if(!c)return null; const s=prepSeries(c.current,c.time); return {X:s.X.map(v=>Math.min(v*100,100)), Y:s.Y}; }
-    function getArcCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const c=(arcData[fam]||{})["all"]; if(!c)return null; return prepSeries(c.current,c.time); }
+
+    // --- Helpers to reduce "stairs" on Arc Voltage ---
+    // Average Y for identical X
+    function dedupeAvg(X, Y){
+      const map = new Map();
+      for(let i=0;i<X.length;i++){
+        const x = Number(X[i]), y = Number(Y[i]);
+        if(!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if(!map.has(x)) map.set(x, {sum:y, n:1});
+        else { const o = map.get(x); o.sum += y; o.n++; }
+      }
+      const xs=[], ys=[];
+      for(const x of Array.from(map.keys()).sort((a,b)=>a-b)){
+        const o = map.get(x);
+        xs.push(x);
+        ys.push(o.sum / o.n);
+      }
+      return {X:xs, Y:ys};
+    }
+    
+    // Simple moving average smoothing
+    function movingAverage(X, Y, w=5){
+      if(w<=1 || X.length<=w) return {X:[...X], Y:[...Y]};
+      const half = Math.floor(w/2);
+      const outY=[];
+      for(let i=0;i<Y.length;i++){
+        let s=0,c=0;
+        for(let j=Math.max(0,i-half); j<=Math.min(Y.length-1,i+half); j++){
+          s += Y[j]; c++;
+        }
+        outY.push(s/c);
+      }
+      return {X:[...X], Y:outY};
+    }
+    
+    // Updated Arc curve builder (with smoothing)
+    function getArcCurve(){
+      if(!selectedFuse) return null;
+      const fam = selectedFuse.family;
+      const c = (arcData[fam] || {})["all"];
+      if(!c) return null;
+    
+      // 1) base data
+      const s = prepSeries(c.current, c.time);
+    
+      // 2) collapse duplicates
+      const de = dedupeAvg(s.X, s.Y);
+    
+      // 3) smooth slightly (window of 5 points)
+      const sm = movingAverage(de.X, de.Y, 5);
+    
+      return { X: sm.X, Y: sm.Y };
+    }
+
+    
     function getCutCurve(){ if(!selectedFuse)return null; const fam=selectedFuse.family; const famObj=cutData[fam]||{}; const key=`${selectedFuse.I}A`; const c=famObj[key]; if(!c)return null; return prepSeries(c.current,c.time); }
 
     let chartTcc, chartWatts, chartArc, chartCut;
@@ -1549,6 +1603,7 @@
   </script>
 </body>
 </html>
+
 
 
 
